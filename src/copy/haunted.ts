@@ -155,6 +155,7 @@ export const haunted = {
     skin: "Atmosphere",
     skinHaunted: "Haunted",
     skinProfessional: "Professional",
+    switchSkinTo: (name) => `Atmosphere: ${name}`,
     severityNames: "Dread Level names",
     severityNamesHelp: "Rename the Dread Levels to suit your crypt.",
     retroRule: "Binding rule",

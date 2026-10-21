@@ -20,6 +20,11 @@ const eslintConfig = defineConfig([
       ],
     },
   },
+  {
+    // Developer-only tooling, not shipped in production builds.
+    files: ["src/app/dev/**"],
+    rules: { "react/jsx-no-literals": "off", "no-restricted-syntax": "off" },
+  },
   globalIgnores([".next/**", "out/**", "build/**", "next-env.d.ts"]),
 ]);
 

@@ -112,6 +112,7 @@ export interface CopyDictionary {
     skin: string;
     skinHaunted: string;
     skinProfessional: string;
+    switchSkinTo: (skinName: string) => string;
     severityNames: string;
     severityNamesHelp: string;
     retroRule: string;

@@ -2,7 +2,13 @@ import { haunted } from "./haunted";
 import { professional } from "./professional";
 import type { CopyDictionary, EmptyKey, SeverityLevel, SkinKey } from "./types";
 
-export type { CopyDictionary, SkinKey, SeverityLevel, EmptyKey } from "./types";
+export type {
+  CopyDictionary,
+  SkinKey,
+  SeverityLevel,
+  EmptyKey,
+  IncidentStatusKey,
+} from "./types";
 export { EMPTY_KEYS } from "./types";
 
 export const dictionaries: Record<SkinKey, CopyDictionary> = {

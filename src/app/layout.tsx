@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { CopyProvider } from "@/copy/provider";
 import { getCopy } from "@/copy";
+import { getSkin } from "@/lib/skin";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -13,20 +15,22 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-const brand = getCopy("professional").brand;
+export async function generateMetadata(): Promise<Metadata> {
+  const { brand } = getCopy(await getSkin());
+  return { title: brand.name, description: brand.tagline };
+}
 
-export const metadata: Metadata = {
-  title: brand.name,
-  description: brand.tagline,
-};
-
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  const skin = await getSkin();
   return (
     <html
       lang="en"
+      data-skin={skin}
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col font-sans">{children}</body>
+      <body className="min-h-full flex flex-col font-sans">
+        <CopyProvider skin={skin}>{children}</CopyProvider>
+      </body>
     </html>
   );
 }

@@ -132,6 +132,7 @@ export const professional = {
     skin: "Appearance",
     skinHaunted: "Haunted",
     skinProfessional: "Professional",
+    switchSkinTo: (name) => `Appearance: ${name}`,
     severityNames: "Severity names",
     severityNamesHelp: "Override the default severity names for this workspace.",
     retroRule: "Retro rule",
