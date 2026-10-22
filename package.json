@@ -18,7 +18,8 @@
     "db:seed": "prisma db seed",
     "check": "pnpm typecheck && pnpm lint && pnpm test",
     "test:all": "pnpm check && pnpm test:db && pnpm e2e",
-    "seed": "prisma db seed"
+    "seed": "prisma db seed",
+    "seed:mine": "tsx prisma/seed-mine.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "7.10.1",

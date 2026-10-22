@@ -95,3 +95,9 @@ pnpm seed            # demo workspace (8 services, 15 incidents over 90 days); s
 - `Event.updatedAt` is the change marker for live refresh: `after=<iso>` returns every entry with `updatedAt > after` plus deleted note ids (read from `incident.note_deleted` audit rows) and `truncated` past 100. The client polls every 15 s (visible tab) and on focus, then applies the active filter itself.
 - Editing sets `editedAt` only when body or time change; toggling the key-moment star does not. Editing writes no timeline event. Deleting is permanent and audits `{number, noteId}`, never the body.
 - Seed: notes use `minutesAfterStart`; normal events have `createdAt = occurredAt`. Events written by the current seed carry `seedVersion: 2` on the first event's payload; incidents seeded by an older shape are rebuilt once, but only if no real person authored an event.
+
+## Seeding your own account (`pnpm seed:mine`)
+- `pnpm seed:mine -- --email you@example.com [workspace-slug | --workspace slug] [--reset] [--yes]` loads `prisma/seed-incidents.json` into a workspace you already belong to (logic in `src/server/seed/mine.ts`, CLI in `prisma/seed-mine.ts`). It never creates users; with no workspace it creates "The Crypt Demo" through `createWorkspaceWithOwner`, after you confirm.
+- It prints the workspace and the database host/name (never credentials) and needs `yes` typed, or `--yes`. Without a terminal and without `--yes` it refuses.
+- `Incident.seedKey` (slug of the fixture title, unique per workspace, null for real incidents) makes re-runs no-ops and is the only thing `--reset` deletes by. Soft-deleted seeded incidents still count as present. `--reset` only deletes (run again to reseed), keeps seeded incidents that have a postmortem, and never rewinds `nextIncidentNumber`.
+- Fixture `commander`/`scribe` are indexes into: you first, then other members by membership date; out of range falls back to you. Notes are authored by the scribe (else the commander).

@@ -1,0 +1,263 @@
+{
+  "_readme": "Schema-neutral seed fixtures for The Crypt. Times are relative to the moment the seed runs: startedHoursAgo counts back from now. Open incidents have durationMinutes null and no resolvedAt. Statuses are canonical enum values. Services reference slugs. commander and scribe are indexes into the seed users array (0-2). Notes are timeline entries, minutesAfterStart is relative to startedAt. rootCause is for seeding postmortems later.",
+  "services": [
+    { "name": "Checkout API", "slug": "checkout-api" },
+    { "name": "Payments Gateway", "slug": "payments-gateway" },
+    { "name": "Auth Service", "slug": "auth-service" },
+    { "name": "Web App", "slug": "web-app" },
+    { "name": "Search", "slug": "search" },
+    { "name": "Notifications", "slug": "notifications" },
+    { "name": "Database Cluster", "slug": "database-cluster" },
+    { "name": "Background Jobs", "slug": "background-jobs" }
+  ],
+  "incidents": [
+    {
+      "title": "Checkout API timeouts during flash sale",
+      "summary": "Checkout requests began timing out as traffic tripled during the weekend flash sale. About 12% of carts failed at the payment step.",
+      "severity": 4,
+      "status": "RESOLVED",
+      "services": ["checkout-api", "database-cluster"],
+      "startedHoursAgo": 2000,
+      "durationMinutes": 95,
+      "commander": 0,
+      "scribe": 1,
+      "rootCause": "Connection pool exhausted on the primary database under peak load.",
+      "notes": [
+        { "minutesAfterStart": 10, "body": "Error rate on /checkout/confirm at 12%. Pool saturation alarm firing." },
+        { "minutesAfterStart": 70, "body": "Pool size raised and read-only queries moved to replica. Error rate back under 0.5%." }
+      ]
+    },
+    {
+      "title": "Payment webhook failures",
+      "summary": "Webhooks from the payment provider were being rejected, so orders stayed in pending even though customers were charged.",
+      "severity": 3,
+      "status": "RESOLVED",
+      "services": ["payments-gateway"],
+      "startedHoursAgo": 1850,
+      "durationMinutes": 140,
+      "commander": 1,
+      "scribe": 2,
+      "rootCause": "Signature verification used a rotated secret that was not deployed to all instances.",
+      "notes": [
+        { "minutesAfterStart": 15, "body": "Provider dashboard shows 4xx responses from our webhook endpoint since the last deploy." },
+        { "minutesAfterStart": 120, "body": "Secret synced to all instances. Pending orders being reprocessed from the provider's retry queue." }
+      ]
+    },
+    {
+      "title": "Search index lag after reindex",
+      "summary": "New products took up to an hour to appear in search results after a scheduled reindex.",
+      "severity": 2,
+      "status": "RESOLVED",
+      "services": ["search"],
+      "startedHoursAgo": 1700,
+      "durationMinutes": 210,
+      "commander": 2,
+      "scribe": 0,
+      "rootCause": "Reindex job ran alongside the incremental updater and starved it of resources.",
+      "notes": [
+        { "minutesAfterStart": 30, "body": "Index freshness metric at 52 minutes against a 2 minute target." },
+        { "minutesAfterStart": 190, "body": "Incremental updater given dedicated workers. Freshness back to normal." }
+      ]
+    },
+    {
+      "title": "Login failures for SSO users",
+      "summary": "Users signing in through single sign-on were bounced back to the login page with a generic error.",
+      "severity": 4,
+      "status": "RESOLVED",
+      "services": ["auth-service", "web-app"],
+      "startedHoursAgo": 1500,
+      "durationMinutes": 75,
+      "commander": 0,
+      "scribe": 2,
+      "rootCause": "An expired identity-provider certificate was not rotated in time.",
+      "notes": [
+        { "minutesAfterStart": 8, "body": "Only SSO logins affected. Password logins healthy." },
+        { "minutesAfterStart": 60, "body": "New certificate uploaded to the identity provider config. Logins recovering." }
+      ]
+    },
+    {
+      "title": "Checkout API timeout spike",
+      "summary": "Another burst of checkout timeouts, shorter than last time, concentrated on card payments.",
+      "severity": 4,
+      "status": "RESOLVED",
+      "services": ["checkout-api"],
+      "startedHoursAgo": 1300,
+      "durationMinutes": 120,
+      "commander": 1,
+      "scribe": 0,
+      "rootCause": "Slow query on the orders table after a new index was dropped during a migration.",
+      "notes": [
+        { "minutesAfterStart": 20, "body": "Slow query log shows a full scan on orders by customer_id." },
+        { "minutesAfterStart": 100, "body": "Index recreated. Latency back to baseline." }
+      ]
+    },
+    {
+      "title": "Invoice dates shown in wrong timezone",
+      "summary": "Invoice pages displayed dates in UTC instead of the customer's timezone. Cosmetic only, no billing impact.",
+      "severity": 1,
+      "status": "RESOLVED",
+      "services": ["web-app"],
+      "startedHoursAgo": 1200,
+      "durationMinutes": 640,
+      "commander": 2,
+      "scribe": 1,
+      "rootCause": "Date formatter ignored the user's locale setting after a library upgrade.",
+      "notes": [
+        { "minutesAfterStart": 45, "body": "Reproduced on invoice detail and invoice list pages." },
+        { "minutesAfterStart": 600, "body": "Fix deployed and verified in three timezones." }
+      ]
+    },
+    {
+      "title": "Database primary failover",
+      "summary": "The primary database node failed and the cluster failed over. Writes were unavailable for several minutes and some requests errored across the product.",
+      "severity": 5,
+      "status": "RESOLVED",
+      "services": ["database-cluster", "checkout-api", "web-app"],
+      "startedHoursAgo": 1000,
+      "durationMinutes": 48,
+      "commander": 0,
+      "scribe": 1,
+      "rootCause": "Hardware fault on the primary node. Failover worked, but application connections did not reconnect cleanly.",
+      "notes": [
+        { "minutesAfterStart": 5, "body": "Failover triggered automatically. Replica promoted. Apps still holding dead connections." },
+        { "minutesAfterStart": 40, "body": "Rolling restart of app servers complete. Writes healthy." }
+      ]
+    },
+    {
+      "title": "Background job queue backlog",
+      "summary": "The job queue grew past 200,000 pending items, delaying exports and scheduled reports.",
+      "severity": 3,
+      "status": "RESOLVED",
+      "services": ["background-jobs"],
+      "startedHoursAgo": 860,
+      "durationMinutes": 185,
+      "commander": 2,
+      "scribe": 0,
+      "rootCause": "A single large export job blocked workers because all jobs shared one queue.",
+      "notes": [
+        { "minutesAfterStart": 25, "body": "Queue depth 212k and growing. One export job holding 6 of 8 workers." },
+        { "minutesAfterStart": 160, "body": "Large job cancelled and requeued on a separate low-priority queue. Backlog draining." }
+      ]
+    },
+    {
+      "title": "Payment webhooks retrying endlessly",
+      "summary": "Duplicate payment webhooks were retried far beyond the expected limit, creating duplicate order emails.",
+      "severity": 3,
+      "status": "RESOLVED",
+      "services": ["payments-gateway", "background-jobs"],
+      "startedHoursAgo": 700,
+      "durationMinutes": 110,
+      "commander": 1,
+      "scribe": 2,
+      "rootCause": "Handler returned a 500 on already-processed events instead of acknowledging them.",
+      "notes": [
+        { "minutesAfterStart": 12, "body": "Customers reporting two or three confirmation emails per order." },
+        { "minutesAfterStart": 90, "body": "Handler now acknowledges duplicates. Retry volume back to normal." }
+      ]
+    },
+    {
+      "title": "Web app blank page after deploy",
+      "summary": "A release shipped a broken bundle and the app rendered a blank page for most users.",
+      "severity": 4,
+      "status": "RESOLVED",
+      "services": ["web-app"],
+      "startedHoursAgo": 520,
+      "durationMinutes": 35,
+      "commander": 0,
+      "scribe": 1,
+      "rootCause": "A missing environment variable at build time produced an invalid configuration object.",
+      "notes": [
+        { "minutesAfterStart": 4, "body": "Console error on load across all browsers. Last deploy 6 minutes before first report." },
+        { "minutesAfterStart": 25, "body": "Rolled back to the previous release. Page loading normally." }
+      ]
+    },
+    {
+      "title": "Search results returning stale data",
+      "summary": "Search showed prices and stock levels that were several hours out of date.",
+      "severity": 2,
+      "status": "RESOLVED",
+      "services": ["search"],
+      "startedHoursAgo": 380,
+      "durationMinutes": 260,
+      "commander": 2,
+      "scribe": 1,
+      "rootCause": "Index update consumer was paused after a deploy and never resumed.",
+      "notes": [
+        { "minutesAfterStart": 40, "body": "Consumer lag at 4 hours. Consumer shows paused state." },
+        { "minutesAfterStart": 240, "body": "Consumer resumed, lag cleared, and an alert added for paused consumers." }
+      ]
+    },
+    {
+      "title": "Checkout API timeouts on card payments",
+      "summary": "Card payment requests are timing out again, mostly during evening peak. Error rate around 6%.",
+      "severity": 4,
+      "status": "MITIGATING",
+      "services": ["checkout-api", "database-cluster"],
+      "startedHoursAgo": 30,
+      "durationMinutes": null,
+      "commander": 0,
+      "scribe": 2,
+      "notes": [
+        { "minutesAfterStart": 15, "body": "Pattern looks similar to the previous two checkout timeout incidents." },
+        { "minutesAfterStart": 240, "body": "Temporary rate limit on retries applied. Error rate down to 2% while we investigate the query path." }
+      ]
+    },
+    {
+      "title": "Payment webhook failures from provider",
+      "summary": "A growing share of provider webhooks are failing. Orders are stuck in pending for some customers.",
+      "severity": 3,
+      "status": "INVESTIGATING",
+      "services": ["payments-gateway"],
+      "startedHoursAgo": 6,
+      "durationMinutes": null,
+      "commander": 1,
+      "scribe": null,
+      "notes": [
+        { "minutesAfterStart": 10, "body": "Failure rate at 18% and climbing. No deploys in the last 24 hours." }
+      ]
+    },
+    {
+      "title": "Push notifications not delivered on iOS",
+      "summary": "iOS devices are not receiving push notifications. Android and email are unaffected.",
+      "severity": 2,
+      "status": "IDENTIFIED",
+      "services": ["notifications"],
+      "startedHoursAgo": 18,
+      "durationMinutes": null,
+      "commander": 2,
+      "scribe": 0,
+      "notes": [
+        { "minutesAfterStart": 60, "body": "Apple push credentials appear to have expired. Renewal in progress." }
+      ]
+    },
+    {
+      "title": "Token refresh returning 500 errors",
+      "summary": "Users are being logged out unexpectedly because token refresh requests fail with server errors.",
+      "severity": 5,
+      "status": "INVESTIGATING",
+      "services": ["auth-service", "web-app"],
+      "startedHoursAgo": 1,
+      "durationMinutes": null,
+      "commander": 0,
+      "scribe": 1,
+      "notes": [
+        { "minutesAfterStart": 5, "body": "Elevated 500s on /auth/refresh. Session store latency looks high." },
+        { "minutesAfterStart": 20, "body": "Paging database on-call to check the session store cluster." }
+      ]
+    },
+    {
+      "title": "Search showing stale inventory again",
+      "summary": "Inventory counts in search results are lagging behind the source of truth by about two hours.",
+      "severity": 2,
+      "status": "IDENTIFIED",
+      "services": ["search"],
+      "startedHoursAgo": 12,
+      "durationMinutes": null,
+      "commander": 2,
+      "scribe": null,
+      "notes": [
+        { "minutesAfterStart": 30, "body": "Same symptom as the earlier stale-data incident. Checking whether the update consumer is paused again." }
+      ]
+    }
+  ]
+}
