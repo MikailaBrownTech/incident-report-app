@@ -1,22 +1,18 @@
+import "dotenv/config";
 import { defineConfig, devices } from "@playwright/test";
-
-const PORT = 3000;
+import { BASE_URL } from "./e2e/env";
 
 export default defineConfig({
   testDir: "e2e",
   outputDir: "e2e/.results",
-  fullyParallel: true,
+  // Starts the production server and a throwaway DB schema; see e2e/global-setup.ts.
+  globalSetup: "./e2e/global-setup.ts",
+  // Auth tests share one throwaway database schema, so keep them in order.
+  workers: 1,
+  timeout: 60_000,
+  expect: { timeout: 15_000 },
   reporter: [["list"]],
-  use: {
-    baseURL: `http://localhost:${PORT}`,
-    trace: "retain-on-failure",
-  },
+  // Per-action limits so a bad locator fails in seconds with its name, not at the test timeout.
+  use: { baseURL: BASE_URL, trace: "retain-on-failure", actionTimeout: 10_000, navigationTimeout: 30_000 },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
-  // Dev server: /dev/styleguide only exists outside production builds.
-  webServer: {
-    command: `pnpm exec next dev --port ${PORT}`,
-    url: `http://localhost:${PORT}`,
-    reuseExistingServer: true,
-    timeout: 120_000,
-  },
 });

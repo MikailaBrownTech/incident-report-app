@@ -4,22 +4,21 @@ import { getCopy, type SkinKey } from "../src/copy";
 const SKINS: SkinKey[] = ["haunted", "professional"];
 const other = (s: SkinKey): SkinKey => (s === "haunted" ? "professional" : "haunted");
 
-// Add dashboard, incidents list and incident detail here as those screens land (M1/M2).
+// Signed-out screens. Workspace screens (dashboard, settings, members) are covered in
+// auth.spec.ts; add incidents list / incident detail there as those screens land.
 const SCREENS = [
   { name: "landing", path: "/" },
-  { name: "styleguide", path: "/dev/styleguide" },
+  { name: "login", path: "/login" },
 ];
 
-async function useSkin(page: Page, skin: SkinKey) {
-  await page.context().addCookies([
-    { name: "crypt-skin", value: skin, url: "http://localhost:3000" },
-  ]);
+async function useSkin(page: Page, skin: SkinKey, baseURL: string) {
+  await page.context().addCookies([{ name: "crypt-skin", value: skin, url: baseURL }]);
 }
 
 for (const skin of SKINS) {
   for (const screen of SCREENS) {
-    test(`${screen.name} renders only the ${skin} skin`, async ({ page }) => {
-      await useSkin(page, skin);
+    test(`${screen.name} renders only the ${skin} skin`, async ({ page, baseURL }) => {
+      await useSkin(page, skin, baseURL!);
       await page.goto(screen.path);
 
       await expect(page.locator("html")).toHaveAttribute("data-skin", skin);
@@ -34,13 +33,9 @@ for (const skin of SKINS) {
 
       // Layout sanity: content is a single column of the viewport, not two panels.
       const main = await page.locator("main").boundingBox();
-      const viewport = page.viewportSize()!;
-      expect(main!.width).toBeGreaterThan(viewport.width * 0.9);
+      expect(main!.width).toBeGreaterThan(page.viewportSize()!.width * 0.9);
 
-      await page.screenshot({
-        path: `e2e/screenshots/${screen.name}-${skin}.png`,
-        fullPage: true,
-      });
+      await page.screenshot({ path: `e2e/screenshots/${screen.name}-${skin}.png`, fullPage: true });
     });
   }
 }
@@ -52,19 +47,21 @@ test("defaults to haunted with no cookie", async ({ page }) => {
 
 test("toggle switches the whole app and persists across reloads and pages", async ({ page }) => {
   await page.goto("/");
-  await expect(page.locator("html")).toHaveAttribute("data-skin", "haunted");
-
   await page.getByTestId("skin-toggle").click();
   await expect(page.locator("html")).toHaveAttribute("data-skin", "professional");
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-    getCopy("professional").brand.tagline,
-  );
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(getCopy("professional").brand.tagline);
 
   await page.reload();
   await expect(page.locator("html")).toHaveAttribute("data-skin", "professional");
 
-  await page.goto("/dev/styleguide");
+  await page.goto("/login");
   await expect(page.locator("html")).toHaveAttribute("data-skin", "professional");
   await page.getByTestId("skin-toggle").click();
   await expect(page.locator("html")).toHaveAttribute("data-skin", "haunted");
+});
+
+// The dev styleguide exists only in `next dev`; this run is a production build.
+test("the dev styleguide is not part of the production build", async ({ page }) => {
+  const response = await page.goto("/dev/styleguide");
+  expect(response?.status()).toBe(404);
 });

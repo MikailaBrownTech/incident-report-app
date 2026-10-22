@@ -1,0 +1,337 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------- Better Auth (global, NOT tenant-scoped) ----------
+// Field names follow Better Auth's core schema; keep in sync when upgrading it.
+model User {
+  id            String       @id
+  name          String
+  email         String       @unique
+  emailVerified Boolean      @default(false)
+  image         String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  sessions      Session[]
+  accounts      Account[]
+  memberships   Membership[]
+
+  @@map("user")
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+// ---------- Tenancy ----------
+enum Plan {
+  FREE
+  TEAM
+  BUSINESS
+}
+
+enum Skin {
+  HAUNTED
+  PROFESSIONAL
+}
+
+enum Role {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+model Workspace {
+  id                 String   @id @default(cuid())
+  name               String
+  slug               String   @unique
+  plan               Plan     @default(FREE)
+  stripeCustomerId   String? // billing stub
+  skin               Skin     @default(HAUNTED)
+  severityLabels     Json? // {"1": "Custom name", ...} overrides skin defaults
+  nextIncidentNumber Int      @default(1) // atomically incremented per workspace
+  createdAt          DateTime @default(now())
+
+  memberships  Membership[]
+  invites      Invite[]
+  services     Service[]
+  incidents    Incident[]
+  integrations Integration[]
+  retroRule    RetroRule?
+}
+
+model Membership {
+  id          String    @id @default(cuid())
+  workspaceId String
+  userId      String
+  role        Role      @default(MEMBER)
+  createdAt   DateTime  @default(now())
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  assignments IncidentAssignment[]
+
+  @@unique([workspaceId, userId])
+  @@index([userId])
+}
+
+model Invite {
+  id          String    @id @default(cuid())
+  workspaceId String
+  email       String
+  role        Role      @default(MEMBER)
+  tokenHash   String    @unique // sha256 of the emailed token; the raw token is never stored
+  invitedById String
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, email])
+}
+
+// ---------- Incidents ----------
+enum IncidentStatus {
+  INVESTIGATING
+  IDENTIFIED
+  MITIGATING
+  RESOLVED
+}
+
+enum IncidentRole {
+  COMMANDER
+  SCRIBE
+  COMMS
+}
+
+model Service {
+  id          String            @id @default(cuid())
+  workspaceId String
+  name        String
+  workspace   Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  incidents   IncidentService[]
+
+  @@unique([workspaceId, name])
+  @@unique([id, workspaceId])
+}
+
+model Incident {
+  id           String         @id @default(cuid())
+  workspaceId  String
+  number       Int // per-workspace sequence
+  title        String
+  summary      String         @default("")
+  severity     Int // 1..5, 5 = most severe
+  status       IncidentStatus @default(INVESTIGATING)
+  startedAt    DateTime       @default(now())
+  resolvedAt   DateTime? // set on RESOLVED, cleared on reopen; MTTR source
+  revenantOfId String?
+  createdById  String
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  workspace   Workspace            @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  revenantOf  Incident?            @relation("Revenant", fields: [revenantOfId], references: [id], onDelete: SetNull)
+  revenants   Incident[]           @relation("Revenant")
+  services    IncidentService[]
+  assignments IncidentAssignment[]
+  events      Event[]
+  postmortem  Postmortem?
+
+  @@unique([workspaceId, number])
+  @@unique([id, workspaceId])
+  @@index([workspaceId, status])
+  @@index([workspaceId, startedAt])
+}
+
+model IncidentService {
+  incidentId  String
+  serviceId   String
+  workspaceId String
+  incident    Incident @relation(fields: [incidentId, workspaceId], references: [id, workspaceId], onDelete: Cascade)
+  service     Service  @relation(fields: [serviceId, workspaceId], references: [id, workspaceId], onDelete: Cascade)
+
+  @@id([incidentId, serviceId])
+  @@index([workspaceId, serviceId])
+}
+
+model IncidentAssignment {
+  id          String       @id @default(cuid())
+  workspaceId String
+  incidentId  String
+  userId      String
+  role        IncidentRole
+  incident    Incident     @relation(fields: [incidentId, workspaceId], references: [id, workspaceId], onDelete: Cascade)
+  member      Membership   @relation(fields: [workspaceId, userId], references: [workspaceId, userId], onDelete: Cascade)
+
+  @@unique([incidentId, role]) // one holder per role
+  @@index([workspaceId, userId])
+}
+
+// ---------- Events (timeline; webhook-ready) ----------
+enum EventSource {
+  USER
+  SYSTEM
+  INTEGRATION
+}
+
+enum EventType {
+  NOTE
+  STATUS_CHANGED
+  SEVERITY_CHANGED
+  ROLE_ASSIGNED
+  ROLE_UNASSIGNED
+  SERVICES_CHANGED
+  REVENANT_LINKED
+  POSTMORTEM_PUBLISHED
+  RITUAL_CREATED
+  RETRO_OVERRIDE
+  EXTERNAL // catch-all for webhook payloads
+}
+
+model Event {
+  id            String      @id @default(cuid())
+  workspaceId   String
+  incidentId    String
+  type          EventType
+  source        EventSource @default(USER)
+  actorId       String? // null for system/integration; kept as a plain id so history survives member removal
+  body          String?
+  payload       Json        @default("{}")
+  occurredAt    DateTime    @default(now()) // when it happened (may be backdated)
+  createdAt     DateTime    @default(now()) // when we recorded it
+  integrationId String?
+  externalId    String? // idempotency key for webhook ingestion
+  incident      Incident    @relation(fields: [incidentId, workspaceId], references: [id, workspaceId], onDelete: Cascade)
+
+  @@unique([integrationId, externalId])
+  @@index([workspaceId, incidentId, occurredAt])
+}
+
+// Extension point for Slack / PagerDuty / etc. Unused in v1.
+model Integration {
+  id          String    @id @default(cuid())
+  workspaceId String
+  kind        String
+  config      Json      @default("{}")
+  secretHash  String?
+  createdAt   DateTime  @default(now())
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+}
+
+// ---------- Postmortems & rituals ----------
+enum PostmortemStatus {
+  DRAFT
+  PUBLISHED
+}
+
+model Postmortem {
+  id          String              @id @default(cuid())
+  workspaceId String
+  incidentId  String              @unique
+  status      PostmortemStatus    @default(DRAFT)
+  publishedAt DateTime?
+  authorId    String
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+  incident    Incident            @relation(fields: [incidentId, workspaceId], references: [id, workspaceId], onDelete: Cascade)
+  sections    PostmortemSection[]
+  rituals     ActionItem[]
+
+  @@unique([id, workspaceId])
+  @@unique([incidentId, workspaceId])
+}
+
+model PostmortemSection {
+  id           String     @id @default(cuid())
+  workspaceId  String
+  postmortemId String
+  key          String // CAUSE | LAST_SIGHTING | WITNESSES | LEARNED
+  content      Json // Tiptap document
+  position     Int
+  postmortem   Postmortem @relation(fields: [postmortemId, workspaceId], references: [id, workspaceId], onDelete: Cascade)
+
+  @@unique([postmortemId, key])
+}
+
+enum ActionStatus {
+  OPEN
+  IN_PROGRESS
+  DONE
+}
+
+// "Ritual" in the haunted skin.
+model ActionItem {
+  id           String       @id @default(cuid())
+  workspaceId  String
+  postmortemId String
+  title        String
+  description  String       @default("")
+  ownerId      String // plain id so finished rituals keep their history after a member leaves; M4 validates owner is a current member
+  dueDate      DateTime
+  status       ActionStatus @default(OPEN)
+  completedAt  DateTime?
+  createdAt    DateTime     @default(now())
+  postmortem   Postmortem   @relation(fields: [postmortemId, workspaceId], references: [id, workspaceId], onDelete: Cascade)
+
+  @@index([workspaceId, ownerId, status])
+  @@index([workspaceId, status, dueDate]) // overdue = status != DONE AND dueDate < now()
+}
+
+model RetroRule {
+  id          String    @id @default(cuid())
+  workspaceId String    @unique
+  minSeverity Int       @default(3) // require a postmortem for severity >= this
+  enabled     Boolean   @default(true)
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+}

@@ -11,15 +11,16 @@ pnpm dev            # dev server
 pnpm build          # production build
 pnpm typecheck      # next typegen + tsc --noEmit
 pnpm lint           # eslint (includes the no-hardcoded-strings rules)
-pnpm test           # unit tests (no DB needed)
-pnpm test:db        # DB-backed suites (*.db.test.ts); each run uses a throwaway schema in DATABASE_URL, dropped afterwards
-pnpm e2e            # Playwright smoke test
-pnpm db:migrate     # prisma migrate dev
-pnpm db:seed        # demo data (~15 incidents, 6 postmortems, 20 rituals)
-pnpm db:reset       # drop, migrate, seed
+pnpm check          # typecheck + lint + unit tests (~27s): run after every change
+pnpm test           # unit tests only (<2s, no DB)
+pnpm test:db        # DB suites (*.db.test.ts, ~25s): run when touching src/server/db, auth or workspaces; uses a throwaway schema in your Neon DB
+pnpm e2e            # Playwright against a production build on :3200 + throwaway schema; run at milestone end, not per change
+pnpm test:all       # check + test:db + e2e (milestone gate)
+pnpm db:migrate     # prisma migrate dev (uses DIRECT_URL); regenerates the client
+pnpm db:deploy      # prisma migrate deploy
+pnpm db:seed        # demo data (~15 incidents, 6 postmortems, 20 rituals) - arrives in M7
 # Database: Neon (see .env.example); no local Docker needed
 ```
-Scripts for `test:db` and `db:*` arrive with the milestones that need them (M1+).
 
 ## Theme-dictionary rule (no hardcoded user-facing strings)
 - Every user-facing string lives in `src/copy/` and is read via `getCopy(skin)` (server) or `useCopy()` (client).
@@ -31,7 +32,13 @@ Scripts for `test:db` and `db:*` arrive with the milestones that need them (M1+)
 - ESLint enforces JSX text and those attributes under `src/app`, `src/components`, `src/features`.
 
 ## Conventions
-- Tenant isolation: every tenant-model query goes through `forWorkspace(workspaceId)`; the raw Prisma client is never imported outside `src/server/db`. Obtain it via `requireWorkspace(slug)`. A registry test fails if a model with `workspaceId` is not registered. (Lands in M1.)
+- Tenant isolation (the core rule): app code gets data ONLY through `ctx.db` from `requireWorkspace(slug)` (`src/server/auth/context.ts`), which is `forWorkspace(workspaceId)` (`src/server/db/tenant.ts`). It forces `workspaceId` on every read/write of a registered model, throws if a query names another workspace, and blocks the auth tables. On creates pass `workspaceId: ctx.db.$workspaceId` (Prisma's types require it; a different value throws).
+  - ESLint forbids importing `@/server/db/client` and `$queryRaw`/`$executeRaw` outside `src/server/db`. Pre-workspace operations (resolve slug, create workspace, redeem invite) live in `src/server/db/root.ts`; keep it small.
+  - New tenant model: add `workspaceId` + a composite FK to its parent `(id, workspaceId)`, then list it in `src/server/db/tenant-models.ts` and `tenant.db.test.ts` (a unit test fails if the registry drifts from schema.prisma).
+  - Ritual owners are plain ids (history must survive a member leaving); validate "owner is a current member" on write (M4).
+- Auth: Better Auth, email magic link only. Config in `src/server/auth/auth.ts`; session via `getSession()`. In dev (no `EMAIL_SERVER`) emails print to the console and go to `.dev-outbox/`.
+- Permissions live in `src/server/auth/permissions.ts` (`ctx.can` / `ctx.assert`); owners-only for owner changes; the last owner can't be demoted or removed.
+- `pnpm test:db` creates a random schema inside your Neon DB, applies the real migrations, and drops it; nothing touches real tables. Shell: Prisma is pinned to 7.10.1 (client + CLI must match).
 - All timeline writes go through `recordEvent()` (`src/server/events`); webhook ingestion will reuse it.
 - Mutations are server actions validated with Zod; pages stay thin and delegate to `src/features/<name>/`.
 - "Overdue" is computed (`status != DONE AND dueDate < now`), never stored.
@@ -44,7 +51,12 @@ Scripts for `test:db` and `db:*` arrive with the milestones that need them (M1+)
 
 ## Skins: one at a time
 - The app renders exactly ONE skin. `data-skin` lives only on `<html>` (set in `src/app/layout.tsx`); never add a nested `data-skin`, split view or side-by-side comparison to a real page.
-- Source of truth: `Workspace.skin` inside a workspace; the `crypt-skin` cookie (default `haunted`) before login. Resolve with `getSkin(workspaceSkin?)` in `src/lib/skin.ts`.
-- Switch with `<SkinToggle skin={skin} />` (server action `setSkin`). M1 must also: persist `Workspace.skin` from Settings, render the toggle in the user menu, and pass the workspace skin to `getSkin` / layout.
+- Source of truth: `Workspace.skin` inside a workspace; the `crypt-skin` cookie (default `haunted`) before login. Resolve with `getSkin()` in `src/lib/skin.ts` (inside `/w/<slug>` it reads the workspace via the path forwarded by `src/proxy.ts`).
+- Switch with `<SkinToggle skin={skin} workspaceSlug={slug} />` (server action `setSkin`); inside a workspace it saves `Workspace.skin` (any member may switch) and always updates the cookie. The toggle is in the app header.
 - `/dev/styleguide` is `src/app/dev/styleguide/page.dev.tsx`: it shows the active skin only (with the toggle). `.dev.tsx` is a page extension only outside production (`next.config.ts`), so it is not in production builds. Not linked from navigation.
 - `pnpm e2e` (Playwright) screenshots each screen per skin to `e2e/screenshots/` and asserts a single `[data-skin]`. Add dashboard / incidents list / incident detail to `SCREENS` in `e2e/skins.spec.ts` when they exist. It reuses a running dev server on :3000 (restart it after changing `next.config.ts`).
+
+## Testing tiers (keep the inner loop fast)
+- Inner loop: `pnpm check`. Touching db/auth/members: add `pnpm test:db`. Milestone end: `pnpm test:all`.
+- DB tests: keep fixtures minimal (create only the rows a test needs) and write independent tests as `it.concurrent` with their own team; Neon round trips (~40ms each) dominate.
+- E2E: runs a production build (no per-route dev compiles, single process, `/dev/styleguide` must 404). Each person signs in once; reuse `storageState`. Magic links are read from `.dev-outbox/` (enabled by `E2E_OUTBOX=1`, e2e only).

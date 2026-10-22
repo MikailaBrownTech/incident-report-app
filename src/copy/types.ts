@@ -118,6 +118,8 @@ export interface CopyDictionary {
     retroRule: string;
     retroRuleHelp: (severityName: string) => string;
     plan: string;
+    planName: Record<"FREE" | "TEAM" | "BUSINESS", string>;
+    planLine: (planName: string) => string;
     save: string;
   };
   actions: {
@@ -137,6 +139,65 @@ export interface CopyDictionary {
     required: string;
     tooLong: (max: number) => string;
     invalidEmail: string;
+  };
+  auth: {
+    signInHeading: string;
+    signInHelp: string;
+    emailLabel: string;
+    emailPlaceholder: string;
+    sendLink: string;
+    sending: string;
+    checkEmailHeading: string;
+    checkEmailBody: (email: string) => string;
+    linkFailed: string;
+  };
+  onboarding: {
+    heading: string;
+    help: string;
+    workspaceNameLabel: string;
+    workspaceNamePlaceholder: string;
+    create: string;
+  };
+  members: {
+    heading: string;
+    inviteHeading: string;
+    emailLabel: string;
+    roleLabel: string;
+    pendingInvites: string;
+    expires: (date: string) => string;
+    revoke: string;
+    changeRole: string;
+    you: string;
+    inviteSent: (email: string) => string;
+    alreadyMember: string;
+    lastOwner: string;
+    hasRituals: string;
+    roleNotAllowed: string;
+    updated: string;
+  };
+  invite: {
+    heading: (workspaceName: string) => string;
+    asRole: (role: string) => string;
+    accept: string;
+    signInToAccept: string;
+    wrongAccount: (invited: string) => string;
+    expired: string;
+    used: string;
+    notFound: string;
+  };
+  email: {
+    magicLinkSubject: string;
+    magicLinkBody: string;
+    magicLinkButton: string;
+    inviteSubject: (workspaceName: string) => string;
+    inviteBody: (workspaceName: string, role: string) => string;
+    inviteButton: string;
+    ignoreIfNotYou: string;
+  };
+  userMenu: {
+    account: string;
+    workspaces: string;
+    newWorkspace: string;
   };
   a11y: {
     skipToContent: string;

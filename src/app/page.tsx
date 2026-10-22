@@ -1,10 +1,19 @@
+import Link from "next/link";
+import { redirect } from "next/navigation";
 import { Fog } from "@/components/fog";
 import { SkinToggle } from "@/components/skin-toggle";
 import { getCopy } from "@/copy";
 import { getSkin } from "@/lib/skin";
+import { getSession } from "@/server/auth/session";
+import { listWorkspacesForUser } from "@/server/db/root";
 
-/** Interim landing page (replaced in M1). Renders the single active skin. */
 export default async function Home() {
+  const session = await getSession();
+  if (session) {
+    const [first] = await listWorkspacesForUser(session.user.id);
+    redirect(first ? `/w/${first.workspace.slug}/dashboard` : "/onboarding");
+  }
+
   const skin = await getSkin();
   const t = getCopy(skin);
 
@@ -19,9 +28,9 @@ export default async function Home() {
         <h1 className="flicker text-4xl font-bold">{t.brand.tagline}</h1>
         <p className="text-muted">{t.postmortem.blamelessNote}</p>
         <div>
-          <span className="inline-block rounded bg-accent px-4 py-2 font-medium text-accent-fg">
+          <Link href="/login" className="inline-block rounded bg-accent px-4 py-2 font-medium text-accent-fg">
             {t.nav.signIn}
-          </span>
+          </Link>
         </div>
       </section>
     </main>
