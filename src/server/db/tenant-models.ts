@@ -16,6 +16,8 @@ export const TENANT_MODELS = [
   "PostmortemSection",
   "ActionItem",
   "RetroRule",
+  "PostmortemTemplate",
+  "AuditLog",
 ] as const;
 
 /** The tenant root; scoped by its own `id`. */

@@ -9,7 +9,7 @@ export { TenantScopeError, scopeArgs } from "./scope";
  * is forced to the given workspace; global auth tables are unreachable; raw SQL is
  * typed away (and ESLint-banned outside src/server/db).
  */
-export function forWorkspace(workspaceId: string, client: PrismaClient = prisma) {
+export function scopedDb(workspaceId: string, client: PrismaClient = prisma) {
   if (!workspaceId) throw new TenantScopeError("workspaceId is required");
   const extended = client.$extends({
     name: "tenant-scope",
@@ -30,4 +30,4 @@ export function forWorkspace(workspaceId: string, client: PrismaClient = prisma)
   >;
 }
 
-export type ScopedDb = ReturnType<typeof forWorkspace>;
+export type ScopedDb = ReturnType<typeof scopedDb>;

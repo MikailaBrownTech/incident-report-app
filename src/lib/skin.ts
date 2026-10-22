@@ -14,12 +14,12 @@ export function parseSkin(value: string | undefined | null): SkinKey {
 }
 
 /**
- * The one skin for this request. Inside /w/<slug> it is that workspace's setting
+ * The one skin for this request. Inside /app/<slug> it is that workspace's setting
  * (the path comes from src/proxy.ts); everywhere else, including before login, it is
  * the `crypt-skin` cookie, defaulting to haunted.
  */
 export async function getSkin(): Promise<SkinKey> {
-  const slug = /^\/w\/([^/]+)/.exec((await headers()).get("x-pathname") ?? "")?.[1];
+  const slug = /^\/app\/([^/]+)/.exec((await headers()).get("x-pathname") ?? "")?.[1];
   if (slug) {
     const workspaceSkin = await getWorkspaceSkin(decodeURIComponent(slug));
     if (workspaceSkin) return workspaceSkin;

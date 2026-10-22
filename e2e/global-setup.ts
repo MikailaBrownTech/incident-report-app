@@ -33,8 +33,9 @@ export default async function globalSetup() {
     NEXT_DIST_DIR: ".next-e2e",
     DATABASE_URL: process.env.DIRECT_URL ?? "",
     DATABASE_SCHEMA: SCHEMA,
+    APP_URL: BASE_URL,
     BETTER_AUTH_URL: BASE_URL,
-    EMAIL_SERVER: "", // never send real email
+    RESEND_API_KEY: "", // never send real email
     E2E_OUTBOX: "1", // write mail to .dev-outbox so tests can read links
   };
 

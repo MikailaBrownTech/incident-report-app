@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { ToastProvider } from "@/components/toast";
 import { CopyProvider } from "@/copy/provider";
 import { getCopy } from "@/copy";
 import { getSkin } from "@/lib/skin";
@@ -29,7 +30,9 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col font-sans">
-        <CopyProvider skin={skin}>{children}</CopyProvider>
+        <CopyProvider skin={skin}>
+          <ToastProvider>{children}</ToastProvider>
+        </CopyProvider>
       </body>
     </html>
   );

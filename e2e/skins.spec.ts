@@ -5,10 +5,11 @@ const SKINS: SkinKey[] = ["haunted", "professional"];
 const other = (s: SkinKey): SkinKey => (s === "haunted" ? "professional" : "haunted");
 
 // Signed-out screens. Workspace screens (dashboard, settings, members) are covered in
-// auth.spec.ts; add incidents list / incident detail there as those screens land.
+// m1.spec.ts; add incidents list / incident detail there as those screens land.
 const SCREENS = [
   { name: "landing", path: "/" },
-  { name: "login", path: "/login" },
+  { name: "sign-in", path: "/sign-in" },
+  { name: "sign-up", path: "/sign-up" },
 ];
 
 async function useSkin(page: Page, skin: SkinKey, baseURL: string) {
@@ -54,7 +55,7 @@ test("toggle switches the whole app and persists across reloads and pages", asyn
   await page.reload();
   await expect(page.locator("html")).toHaveAttribute("data-skin", "professional");
 
-  await page.goto("/login");
+  await page.goto("/sign-in");
   await expect(page.locator("html")).toHaveAttribute("data-skin", "professional");
   await page.getByTestId("skin-toggle").click();
   await expect(page.locator("html")).toHaveAttribute("data-skin", "haunted");

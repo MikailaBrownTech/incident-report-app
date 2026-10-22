@@ -1,5 +1,5 @@
-import { randomBytes } from "node:crypto";
-import type { Role } from "@/generated/prisma/client";
+import { checkSlug, type SlugProblem } from "@/features/workspaces/slug";
+import { Prisma, type Role } from "@/generated/prisma/client";
 import { hashInviteToken } from "@/server/invites/token";
 import { prisma } from "./client";
 
@@ -8,16 +8,6 @@ import { prisma } from "./client";
  * workspace is known (resolving a slug for a user, creating a workspace, redeeming an
  * invite). Each takes the acting user explicitly. Keep this file small.
  */
-
-export function slugify(name: string): string {
-  const base = name
-    .toLowerCase()
-    .normalize("NFKD")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 40);
-  return base || "crypt";
-}
 
 export async function listWorkspacesForUser(userId: string) {
   const rows = await prisma.membership.findMany({
@@ -39,26 +29,73 @@ export async function getWorkspaceForMember(slug: string, userId: string) {
   return { workspace, membership: rest };
 }
 
-export async function createWorkspaceWithOwner(input: { userId: string; name: string }) {
-  const base = slugify(input.name);
-  for (let attempt = 0; attempt < 5; attempt++) {
-    const slug = attempt === 0 ? base : `${base}-${randomBytes(2).toString("hex")}`;
-    if (await prisma.workspace.findUnique({ where: { slug }, select: { id: true } })) continue;
-    return prisma.workspace.create({
-      data: {
-        name: input.name,
-        slug,
-        retroRule: { create: {} },
-        memberships: { create: { userId: input.userId, role: "OWNER" } },
-      },
+/** Section order of the system postmortem template; titles and prompts come from the copy dictionary. */
+const DEFAULT_TEMPLATE_SECTIONS = [
+  { key: "CAUSE", position: 0 },
+  { key: "LAST_SIGHTING", position: 1 },
+  { key: "WITNESSES", position: 2 },
+  { key: "LEARNED", position: 3 },
+];
+
+export type CreateWorkspaceResult =
+  | { ok: true; workspace: { id: string; name: string; slug: string } }
+  | { ok: false; error: SlugProblem | "slug_taken" };
+
+/**
+ * One transaction: workspace (skin HAUNTED), OWNER membership, default system postmortem
+ * template, default retro rule (severity >= 4, REQUIRED) and the workspace.created audit row.
+ */
+export async function createWorkspaceWithOwner(input: {
+  userId: string;
+  name: string;
+  slug: string;
+}): Promise<CreateWorkspaceResult> {
+  const problem = checkSlug(input.slug);
+  if (problem) return { ok: false, error: problem };
+
+  try {
+    const workspace = await prisma.$transaction(async (tx) => {
+      const created = await tx.workspace.create({
+        data: {
+          name: input.name,
+          slug: input.slug,
+          skin: "HAUNTED",
+          memberships: { create: { userId: input.userId, role: "OWNER" } },
+          retroRule: { create: { minSeverity: 4, mode: "REQUIRED" } },
+          postmortemTemplates: {
+            create: { name: "Default", isSystem: true, sections: DEFAULT_TEMPLATE_SECTIONS },
+          },
+        },
+        select: { id: true, name: true, slug: true },
+      });
+      await tx.auditLog.create({
+        data: {
+          workspaceId: created.id,
+          actorId: input.userId,
+          action: "workspace.created",
+          targetType: "workspace",
+          targetId: created.id,
+          metadata: { slug: created.slug },
+        },
+      });
+      return created;
     });
+    return { ok: true, workspace };
+  } catch (err) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+      return { ok: false, error: "slug_taken" };
+    }
+    throw err;
   }
-  throw new Error("Could not allocate a unique workspace slug");
 }
 
 export type InviteLookup =
-  | { status: "ok"; invite: { id: string; email: string; role: Role; workspaceId: string }; workspace: { name: string; slug: string; skin: "HAUNTED" | "PROFESSIONAL" } }
-  | { status: "not_found" | "expired" | "used" };
+  | {
+      status: "ok";
+      invite: { id: string; email: string; role: Role; workspaceId: string };
+      workspace: { name: string; slug: string; skin: "HAUNTED" | "PROFESSIONAL" };
+    }
+  | { status: "not_found" | "expired" | "revoked" | "used" };
 
 export async function findInviteByToken(rawToken: string): Promise<InviteLookup> {
   const invite = await prisma.invite.findUnique({
@@ -66,6 +103,7 @@ export async function findInviteByToken(rawToken: string): Promise<InviteLookup>
     include: { workspace: { select: { name: true, slug: true, skin: true } } },
   });
   if (!invite) return { status: "not_found" };
+  if (invite.revokedAt) return { status: "revoked" };
   if (invite.acceptedAt) return { status: "used" };
   if (invite.expiresAt.getTime() < Date.now()) return { status: "expired" };
   const { workspace, ...rest } = invite;
@@ -78,9 +116,12 @@ export async function findInviteByToken(rawToken: string): Promise<InviteLookup>
 
 export type AcceptResult =
   | { status: "accepted"; slug: string }
-  | { status: "wrong_email" | "not_found" | "expired" | "used" };
+  | { status: "wrong_email" | "not_found" | "expired" | "revoked" | "used" };
 
-/** The signed-in user's verified email must match the invited address. */
+/**
+ * The signed-in user's verified email must match the invited address. Creates exactly one
+ * membership (none if they already belong), marks the invite used and writes the audit row.
+ */
 export async function acceptInvite(input: {
   rawToken: string;
   userId: string;
@@ -91,23 +132,32 @@ export async function acceptInvite(input: {
   if (found.invite.email.toLowerCase() !== input.userEmail.toLowerCase()) {
     return { status: "wrong_email" };
   }
+  const { workspaceId, id: inviteId, role } = found.invite;
+
   const won = await prisma.$transaction(async (tx) => {
     // Claim the invite atomically so a double click can't create two memberships.
     const claimed = await tx.invite.updateMany({
-      where: { id: found.invite.id, acceptedAt: null },
+      where: { id: inviteId, acceptedAt: null, revokedAt: null },
       data: { acceptedAt: new Date() },
     });
     if (claimed.count === 0) return false;
-    await tx.membership.upsert({
-      where: {
-        workspaceId_userId: { workspaceId: found.invite.workspaceId, userId: input.userId },
+
+    const existing = await tx.membership.findUnique({
+      where: { workspaceId_userId: { workspaceId, userId: input.userId } },
+    });
+    // Already a member: keep their existing role, create no duplicate.
+    if (!existing) {
+      await tx.membership.create({ data: { workspaceId, userId: input.userId, role } });
+    }
+    await tx.auditLog.create({
+      data: {
+        workspaceId,
+        actorId: input.userId,
+        action: "invite.accepted",
+        targetType: "invite",
+        targetId: inviteId,
+        metadata: { role, alreadyMember: Boolean(existing) },
       },
-      create: {
-        workspaceId: found.invite.workspaceId,
-        userId: input.userId,
-        role: found.invite.role,
-      },
-      update: {}, // already a member: keep their existing role
     });
     return true;
   });

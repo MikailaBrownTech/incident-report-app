@@ -32,11 +32,15 @@ pnpm db:seed        # demo data (~15 incidents, 6 postmortems, 20 rituals) - arr
 - ESLint enforces JSX text and those attributes under `src/app`, `src/components`, `src/features`.
 
 ## Conventions
-- Tenant isolation (the core rule): app code gets data ONLY through `ctx.db` from `requireWorkspace(slug)` (`src/server/auth/context.ts`), which is `forWorkspace(workspaceId)` (`src/server/db/tenant.ts`). It forces `workspaceId` on every read/write of a registered model, throws if a query names another workspace, and blocks the auth tables. On creates pass `workspaceId: ctx.db.$workspaceId` (Prisma's types require it; a different value throws).
+- Tenant isolation (the core rule): app code gets data ONLY through `ctx.db` from `getWorkspaceContext(slug)` (`src/server/auth/context.ts`), which is `scopedDb(workspaceId)` (`src/server/db/tenant.ts`). It forces `workspaceId` on every read/write of a registered model, throws if a query names another workspace, and blocks the auth tables. On creates pass `workspaceId: ctx.db.$workspaceId` (Prisma's types require it; a different value throws).
   - ESLint forbids importing `@/server/db/client` and `$queryRaw`/`$executeRaw` outside `src/server/db`. Pre-workspace operations (resolve slug, create workspace, redeem invite) live in `src/server/db/root.ts`; keep it small.
   - New tenant model: add `workspaceId` + a composite FK to its parent `(id, workspaceId)`, then list it in `src/server/db/tenant-models.ts` and `tenant.db.test.ts` (a unit test fails if the registry drifts from schema.prisma).
   - Ritual owners are plain ids (history must survive a member leaving); validate "owner is a current member" on write (M4).
-- Auth: Better Auth, email magic link only. Config in `src/server/auth/auth.ts`; session via `getSession()`. In dev (no `EMAIL_SERVER`) emails print to the console and go to `.dev-outbox/`.
+- Auth: Better Auth, email magic link only (no GitHub/social). Config in `src/server/auth/auth.ts`; `getSession()` for the user. Email goes through Resend when `RESEND_API_KEY` is set; otherwise in dev it is printed and saved to `.dev-outbox/`. Base URL is `APP_URL`.
+- Routes: pages live under `/app/{slug}/...` (`/app` redirects to the last-used workspace via the `crypt-last-workspace` cookie); `src/proxy.ts` sends signed-out visitors to `/sign-in?callbackUrl=...`. API routes are `/api/w/{slug}/...`, `/api/workspaces`, `/api/invites/accept`; all errors use `{ error: { code, message, fieldErrors? } }` (`src/server/api/http.ts`).
+- Context helpers: pages use `getWorkspaceContext(slug)` (redirects to sign-in, 404 for non-members), API routes use `getApiWorkspaceContext(slug)` (401 / 404), then `requireRole(ctx, "ADMIN")` for role gates. Never return 403 for a non-member: it must be 404.
+- Audit: security-relevant changes call `writeAudit` (`src/server/audit.ts`) inside the same transaction.
+- Client mutations call the API via `api()` (`src/lib/api-client.ts`), show toasts (`useToast`), and confirm destructive actions with `ConfirmDialog`.
 - Permissions live in `src/server/auth/permissions.ts` (`ctx.can` / `ctx.assert`); owners-only for owner changes; the last owner can't be demoted or removed.
 - `pnpm test:db` creates a random schema inside your Neon DB, applies the real migrations, and drops it; nothing touches real tables. Shell: Prisma is pinned to 7.10.1 (client + CLI must match).
 - All timeline writes go through `recordEvent()` (`src/server/events`); webhook ingestion will reuse it.

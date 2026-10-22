@@ -45,6 +45,7 @@ export interface CopyDictionary {
     retroRules: string;
     billing: string;
     signIn: string;
+    signUp: string;
     signOut: string;
   };
   incident: {
@@ -108,6 +109,8 @@ export interface CopyDictionary {
   };
   settings: {
     heading: string;
+    general: string;
+    saved: string;
     workspaceName: string;
     skin: string;
     skinHaunted: string;
@@ -134,6 +137,9 @@ export interface CopyDictionary {
     generic: string;
     notFound: string;
     forbidden: string;
+    unauthenticated: string;
+    somethingWrong: string;
+    tryAgain: string;
   };
   validation: {
     required: string;
@@ -143,12 +149,17 @@ export interface CopyDictionary {
   auth: {
     signInHeading: string;
     signInHelp: string;
+    signUpHeading: string;
+    signUpHelp: string;
     emailLabel: string;
     emailPlaceholder: string;
-    sendLink: string;
+    sendLinkSignIn: string;
+    sendLinkSignUp: string;
     sending: string;
     checkEmailHeading: string;
     checkEmailBody: (email: string) => string;
+    noAccount: string;
+    hasAccount: string;
     linkFailed: string;
   };
   onboarding: {
@@ -156,34 +167,71 @@ export interface CopyDictionary {
     help: string;
     workspaceNameLabel: string;
     workspaceNamePlaceholder: string;
+    slugLabel: string;
+    slugHelp: string;
+    slugInvalid: string;
+    slugReserved: string;
+    slugTaken: string;
     create: string;
+    creating: string;
+    created: (name: string) => string;
   };
   members: {
     heading: string;
+    tableName: string;
+    tableEmail: string;
+    tableRole: string;
+    tableJoined: string;
+    tableActions: string;
     inviteHeading: string;
     emailLabel: string;
     roleLabel: string;
+    sendInvite: string;
+    sendingInvite: string;
     pendingInvites: string;
+    pendingEmpty: string;
     expires: (date: string) => string;
+    expired: string;
     revoke: string;
+    resend: string;
     changeRole: string;
     you: string;
+    readOnlyNote: string;
+    removeMember: string;
+    leave: string;
+    removeConfirmTitle: (name: string) => string;
+    removeConfirmBody: string;
+    leaveConfirmTitle: string;
+    leaveConfirmBody: string;
+    revokeConfirmTitle: (email: string) => string;
+    revokeConfirmBody: string;
     inviteSent: (email: string) => string;
+    inviteResent: (email: string) => string;
+    inviteRevoked: string;
+    roleChanged: string;
+    memberRemoved: string;
+    left: string;
     alreadyMember: string;
     lastOwner: string;
     hasRituals: string;
     roleNotAllowed: string;
-    updated: string;
+    loadFailed: string;
+    retry: string;
   };
   invite: {
     heading: (workspaceName: string) => string;
     asRole: (role: string) => string;
     accept: string;
+    accepting: string;
     signInToAccept: string;
-    wrongAccount: (invited: string) => string;
+    mismatchHeading: string;
+    mismatchBody: (invited: string, current: string) => string;
+    switchAccount: string;
     expired: string;
+    revoked: string;
     used: string;
     notFound: string;
+    backHome: string;
   };
   email: {
     magicLinkSubject: string;
@@ -198,10 +246,16 @@ export interface CopyDictionary {
     account: string;
     workspaces: string;
     newWorkspace: string;
+    switchWorkspace: string;
+    signedInAs: string;
   };
   a11y: {
     skipToContent: string;
     overdueIcon: string;
     decorativeFog: string;
+    loading: string;
+    toastRegion: string;
+    openMenu: string;
+    closeMenu: string;
   };
 }

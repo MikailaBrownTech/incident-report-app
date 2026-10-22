@@ -3,7 +3,7 @@
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { parseSkin, SKIN_COOKIE } from "@/lib/skin";
-import { requireWorkspace, toSkinEnum } from "@/server/auth/context";
+import { getWorkspaceContext, toSkinEnum } from "@/server/auth/context";
 
 /**
  * Switches the whole app between skins. Inside a workspace (a `workspace` slug is posted)
@@ -15,7 +15,7 @@ export async function setSkin(formData: FormData): Promise<void> {
   const slug = formData.get("workspace")?.toString();
 
   if (slug) {
-    const ctx = await requireWorkspace(slug);
+    const ctx = await getWorkspaceContext(slug);
     if (ctx.can("skin.update")) {
       await ctx.db.workspace.update({ where: { id: ctx.workspace.id }, data: { skin: toSkinEnum(skin) } });
     }

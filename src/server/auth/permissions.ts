@@ -30,6 +30,13 @@ export function can(role: Role, action: Action): boolean {
   return MATRIX[action].includes(role);
 }
 
+const RANK: Record<Role, number> = { MEMBER: 1, ADMIN: 2, OWNER: 3 };
+
+/** True when `role` is at least as privileged as `minimum`. */
+export function hasRole(role: Role, minimum: Role): boolean {
+  return RANK[role] >= RANK[minimum];
+}
+
 export class ForbiddenError extends Error {
   constructor(message = "forbidden") {
     super(message);

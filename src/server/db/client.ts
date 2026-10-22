@@ -3,7 +3,7 @@ import { PrismaClient } from "@/generated/prisma/client";
 
 /**
  * The raw, UNSCOPED client. Only files inside src/server/db may import it (ESLint
- * enforces this); everything else goes through `forWorkspace()` or `root.ts`.
+ * enforces this); everything else goes through `scopedDb()` or `root.ts`.
  */
 const globalForPrisma = globalThis as unknown as { crypt_prisma?: PrismaClient };
 

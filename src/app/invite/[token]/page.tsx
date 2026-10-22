@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { Fog } from "@/components/fog";
 import { primaryButton } from "@/components/form";
+import { AcceptInviteButton, SwitchAccountButton } from "@/components/invite-actions";
 import { SkinToggle } from "@/components/skin-toggle";
 import { getCopy } from "@/copy";
-import { acceptInviteAction } from "@/features/workspaces/actions";
 import { getSkin } from "@/lib/skin";
 import { getSession } from "@/server/auth/session";
 import { findInviteByToken } from "@/server/db/root";
@@ -16,34 +16,65 @@ export default async function InvitePage({ params }: PageProps<"/invite/[token]"
 
   let body;
   if (found.status !== "ok") {
-    const message = { not_found: t.invite.notFound, expired: t.invite.expired, used: t.invite.used }[found.status];
-    body = <p role="alert">{message}</p>;
+    const message = {
+      not_found: t.invite.notFound,
+      expired: t.invite.expired,
+      revoked: t.invite.revoked,
+      used: t.invite.used,
+    }[found.status];
+    body = (
+      <>
+        <p role="alert" className="text-lg">
+          {message}
+        </p>
+        <Link href={session ? "/app" : "/sign-in"} className={`${primaryButton} inline-block self-start`}>
+          {session ? t.invite.backHome : t.nav.signIn}
+        </Link>
+      </>
+    );
   } else {
     const roleName = t.workspaceRole[found.invite.role];
-    body = (
+    const heading = (
       <>
         <h1 className="flicker text-3xl font-bold">{t.invite.heading(found.workspace.name)}</h1>
         <p className="text-muted">{t.invite.asRole(roleName)}</p>
-        {!session ? (
+      </>
+    );
+    if (!session) {
+      body = (
+        <>
+          {heading}
           <Link
-            href={`/login?next=${encodeURIComponent(`/invite/${token}`)}`}
+            href={`/sign-in?callbackUrl=${encodeURIComponent(`/invite/${token}`)}`}
             className={`${primaryButton} inline-block self-start`}
           >
             {t.invite.signInToAccept}
           </Link>
-        ) : session.user.email.toLowerCase() !== found.invite.email.toLowerCase() ? (
-          <p role="alert" className="text-danger">
-            {t.invite.wrongAccount(found.invite.email)}
-          </p>
-        ) : (
-          <form action={acceptInviteAction.bind(null, token)}>
-            <button type="submit" className={primaryButton}>
-              {t.invite.accept}
-            </button>
-          </form>
-        )}
-      </>
-    );
+        </>
+      );
+    } else if (session.user.email.toLowerCase() !== found.invite.email.toLowerCase()) {
+      body = (
+        <>
+          {heading}
+          <div role="alert" className="space-y-1 rounded border border-danger p-4">
+            <p className="font-semibold text-danger">{t.invite.mismatchHeading}</p>
+            <p>{t.invite.mismatchBody(found.invite.email, session.user.email)}</p>
+          </div>
+          <div>
+            <SwitchAccountButton token={token} />
+          </div>
+        </>
+      );
+    } else {
+      body = (
+        <>
+          {heading}
+          <div>
+            <AcceptInviteButton token={token} />
+          </div>
+        </>
+      );
+    }
   }
 
   return (

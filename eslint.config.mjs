@@ -8,7 +8,7 @@ const rawSql = {
   message: "Raw SQL bypasses tenant scoping; add a scoped helper in src/server/db instead.",
 };
 const hardcodedAttr = {
-  selector: "JSXAttribute[name.name=/^(title|placeholder|alt|aria-label|aria-description)$/] > Literal",
+  selector: "JSXAttribute[name.name=/^(title|placeholder|alt|aria-label|aria-description)$/] > Literal[value!='']",
   message: "User-facing attributes must come from the copy dictionary (src/copy).",
 };
 
@@ -17,7 +17,7 @@ const eslintConfig = defineConfig([
   ...nextTs,
   {
     // Tenant isolation: the raw Prisma client and raw SQL stay inside src/server/db
-    // (plus the Better Auth adapter and tests). Everything else uses forWorkspace().
+    // (plus the Better Auth adapter and tests). Everything else uses scopedDb().
     files: ["src/**/*.{ts,tsx}"],
     ignores: ["src/server/db/**", "src/server/auth/auth.ts", "src/test/**", "src/**/*.test.ts"],
     rules: {
@@ -27,7 +27,7 @@ const eslintConfig = defineConfig([
           patterns: [
             {
               group: ["@/server/db/client", "**/db/client"],
-              message: "Use forWorkspace() (or src/server/db/root.ts) instead of the raw Prisma client.",
+              message: "Use scopedDb() (or src/server/db/root.ts) instead of the raw Prisma client.",
             },
           ],
         },

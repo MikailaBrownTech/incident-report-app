@@ -1,16 +1,16 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { createTenant, type Tenant } from "@/test/fixtures";
 import { prisma } from "./client";
-import { TenantScopeError, forWorkspace } from "./tenant";
+import { TenantScopeError, scopedDb } from "./tenant";
 import { TENANT_MODELS } from "./tenant-models";
 
 let a: Tenant;
 let b: Tenant;
-let dbB: ReturnType<typeof forWorkspace>;
+let dbB: ReturnType<typeof scopedDb>;
 
 beforeAll(async () => {
   [a, b] = await Promise.all([createTenant("alpha"), createTenant("beta")]);
-  dbB = forWorkspace(b.workspace.id);
+  dbB = scopedDb(b.workspace.id);
 });
 
 /** How to address tenant A's row in each model: unique where, flat filter, and a harmful update. */
@@ -31,6 +31,8 @@ const spec = (t: Tenant) => ({
   postmortemSection: { unique: { id: t.section.id }, filter: { id: t.section.id }, data: { position: 9 } },
   actionItem: { unique: { id: t.ritual.id }, filter: { id: t.ritual.id }, data: { title: "hijacked" } },
   retroRule: { unique: { id: t.retroRule.id }, filter: { id: t.retroRule.id }, data: { minSeverity: 1 } },
+  postmortemTemplate: { unique: { id: t.template.id }, filter: { id: t.template.id }, data: { name: "hijacked" } },
+  auditLog: { unique: { id: t.audit.id }, filter: { id: t.audit.id }, data: { action: "hijacked" } },
 });
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -39,6 +41,7 @@ const delegate = (db: any, name: string) => db[name];
 const NAMES = [
   "membership", "invite", "service", "incident", "incidentService", "incidentAssignment",
   "event", "integration", "postmortem", "postmortemSection", "actionItem", "retroRule",
+  "postmortemTemplate", "auditLog",
 ] as const;
 
 describe("coverage", () => {
@@ -88,7 +91,7 @@ describe("scoped client behaviour", () => {
     const x = await createTenant("gamma");
     const y = await createTenant("delta");
     const before = await prisma.integration.count({ where: { workspaceId: y.workspace.id } });
-    await forWorkspace(x.workspace.id).integration.deleteMany();
+    await scopedDb(x.workspace.id).integration.deleteMany();
     expect(await prisma.integration.count({ where: { workspaceId: x.workspace.id } })).toBe(0);
     expect(await prisma.integration.count({ where: { workspaceId: y.workspace.id } })).toBe(before);
   });
@@ -120,7 +123,7 @@ describe("scoped client behaviour", () => {
   });
 
   it("a tenant can still read and edit its own data", async () => {
-    const dbA = forWorkspace(a.workspace.id);
+    const dbA = scopedDb(a.workspace.id);
     const updated = await dbA.incident.update({ where: { id: a.incident.id }, data: { summary: "mine" } });
     expect(updated.summary).toBe("mine");
   });

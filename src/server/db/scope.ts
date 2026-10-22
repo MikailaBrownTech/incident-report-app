@@ -45,7 +45,7 @@ function scopedData(data: unknown, key: string, workspaceId: string, setOnCreate
 }
 
 /**
- * Pure arg rewriting behind `forWorkspace`; exported so it can be unit-tested without a
+ * Pure arg rewriting behind `scopedDb`; exported so it can be unit-tested without a
  * database. Throws for anything that could cross a tenant boundary.
  */
 export function scopeArgs(model: string, operation: string, args: Args, workspaceId: string): Args {

@@ -1,6 +1,5 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import nodemailer, { type Transporter } from "nodemailer";
 
 export interface EmailMessage {
   to: string;
@@ -10,34 +9,37 @@ export interface EmailMessage {
   html: string;
 }
 
-let transport: Transporter | null = null;
-
 /**
- * Sends via SMTP when EMAIL_SERVER is set (e.g. smtp://user:pass@host:587). Otherwise the
- * message is printed to the server console so magic links work with zero setup in dev.
+ * Sends through Resend when RESEND_API_KEY is set. Otherwise (development only) the
+ * message is printed to the server console, so magic links work with zero setup.
  */
 export async function sendEmail(message: EmailMessage): Promise<void> {
-  const server = process.env.EMAIL_SERVER;
-  if (!server) {
-    // E2E_OUTBOX lets the Playwright run (a production build) read links from disk; never set it in real deployments.
-    if (process.env.NODE_ENV === "production" && !process.env.E2E_OUTBOX) {
-      throw new Error("EMAIL_SERVER is not configured");
-    }
-    console.log(`\n[email → ${message.to}] ${message.subject}\n${message.text}\n`);
-    // Also drop the latest message per recipient on disk so e2e tests can read links.
-    const dir = join(process.cwd(), ".dev-outbox");
-    await mkdir(dir, { recursive: true });
-    await writeFile(join(dir, `${message.to.replace(/[^a-z0-9@._-]/gi, "_")}.json`), JSON.stringify(message));
+  const apiKey = process.env.RESEND_API_KEY;
+  if (apiKey) {
+    const response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        from: process.env.EMAIL_FROM ?? "The Crypt <onboarding@resend.dev>",
+        to: [message.to],
+        subject: message.subject,
+        text: message.text,
+        html: message.html,
+      }),
+    });
+    if (!response.ok) throw new Error(`Resend rejected the email (${response.status}): ${await response.text()}`);
     return;
   }
-  transport ??= nodemailer.createTransport(server);
-  await transport.sendMail({
-    from: process.env.EMAIL_FROM ?? "The Crypt <no-reply@example.com>",
-    to: message.to,
-    subject: message.subject,
-    text: message.text,
-    html: message.html,
-  });
+
+  // E2E_OUTBOX lets the Playwright run (a production build) read links from disk; never set it in real deployments.
+  if (process.env.NODE_ENV === "production" && !process.env.E2E_OUTBOX) {
+    throw new Error("RESEND_API_KEY is not configured");
+  }
+  console.log(`\n[email → ${message.to}] ${message.subject}\n${message.text}\n`);
+  // Also drop the latest message per recipient on disk so e2e tests can read links.
+  const dir = join(process.cwd(), ".dev-outbox");
+  await mkdir(dir, { recursive: true });
+  await writeFile(join(dir, `${message.to.replace(/[^a-z0-9@._-]/gi, "_")}.json`), JSON.stringify(message));
 }
 
 const escapeHtml = (s: string) =>

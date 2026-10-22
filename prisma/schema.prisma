@@ -100,12 +100,14 @@ model Workspace {
   nextIncidentNumber Int      @default(1) // atomically incremented per workspace
   createdAt          DateTime @default(now())
 
-  memberships  Membership[]
-  invites      Invite[]
-  services     Service[]
-  incidents    Incident[]
-  integrations Integration[]
-  retroRule    RetroRule?
+  memberships         Membership[]
+  invites             Invite[]
+  services            Service[]
+  incidents           Incident[]
+  integrations        Integration[]
+  retroRule           RetroRule?
+  postmortemTemplates PostmortemTemplate[]
+  auditLogs           AuditLog[]
 }
 
 model Membership {
@@ -132,6 +134,7 @@ model Invite {
   invitedById String
   expiresAt   DateTime
   acceptedAt  DateTime?
+  revokedAt   DateTime? // soft revoke so the link shows a friendly "revoked" page, not "not found"
   createdAt   DateTime  @default(now())
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
@@ -328,10 +331,44 @@ model ActionItem {
   @@index([workspaceId, status, dueDate]) // overdue = status != DONE AND dueDate < now()
 }
 
+enum RetroRuleMode {
+  OFF
+  RECOMMENDED
+  REQUIRED
+}
+
 model RetroRule {
+  id          String        @id @default(cuid())
+  workspaceId String        @unique
+  minSeverity Int           @default(4) // applies to incidents at this severity or higher
+  mode        RetroRuleMode @default(REQUIRED)
+  workspace   Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+}
+
+// Postmortem structure. `isSystem` templates are seeded per workspace and can't be deleted.
+model PostmortemTemplate {
   id          String    @id @default(cuid())
-  workspaceId String    @unique
-  minSeverity Int       @default(3) // require a postmortem for severity >= this
-  enabled     Boolean   @default(true)
+  workspaceId String
+  name        String
+  isSystem    Boolean   @default(false)
+  sections    Json // [{ key, position }]; titles and blameless prompts come from the copy dictionary
+  createdAt   DateTime  @default(now())
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+}
+
+// Append-only record of security-relevant changes (who did what to whom, and when).
+model AuditLog {
+  id          String    @id @default(cuid())
+  workspaceId String
+  actorId     String? // plain id: history survives a member leaving
+  action      String // e.g. "member.role_changed"
+  targetType  String
+  targetId    String
+  metadata    Json      @default("{}")
+  createdAt   DateTime  @default(now())
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, createdAt])
 }
