@@ -11,9 +11,9 @@ pnpm dev            # dev server
 pnpm build          # production build
 pnpm typecheck      # next typegen + tsc --noEmit
 pnpm lint           # eslint (includes the no-hardcoded-strings rules)
-pnpm check          # typecheck + lint + unit tests (~27s): run after every change
-pnpm test           # unit tests only (<2s, no DB)
-pnpm test:db        # DB suites (*.db.test.ts, ~25s): run when touching src/server/db, auth or workspaces; uses a throwaway schema in your Neon DB
+pnpm check          # typecheck + lint + unit/component tests (~40s): run after every change
+pnpm test           # unit + jsdom component tests only (~5s, no DB)
+pnpm test:db        # DB suites (*.db.test.ts, ~60s): run when touching src/server/db, auth or workspaces; uses a throwaway schema in your Neon DB
 pnpm e2e            # Playwright against a production build on :3200 + throwaway schema; run at milestone end, not per change
 pnpm test:all       # check + test:db + e2e (milestone gate)
 pnpm db:migrate     # prisma migrate dev (uses DIRECT_URL); regenerates the client
@@ -64,3 +64,14 @@ pnpm db:seed        # demo data (~15 incidents, 6 postmortems, 20 rituals) - arr
 - Inner loop: `pnpm check`. Touching db/auth/members: add `pnpm test:db`. Milestone end: `pnpm test:all`.
 - DB tests: keep fixtures minimal (create only the rows a test needs) and write independent tests as `it.concurrent` with their own team; Neon round trips (~40ms each) dominate.
 - E2E: runs a production build (no per-route dev compiles, single process, `/dev/styleguide` must 404). Each person signs in once; reuse `storageState`. Magic links are read from `.dev-outbox/` (enabled by `E2E_OUTBOX=1`, e2e only).
+
+## Incidents and services (M2)
+- Declaring an incident is one transaction (`src/features/incidents/declare.ts`): allocate the number with Prisma's atomic `increment` on `Workspace.nextIncidentNumber` (never `max(number)+1`), create the incident and service links, write a `STATUS_CHANGED` `Event` (source SYSTEM, payload `{ to, created: true }`) and an `incident.created` audit row. To roll back, `throw` inside the transaction; returning early still commits what was already written.
+- The incidents list is URL-driven: `parseListParams` (pure, `list-params.ts`) validates the query, `listIncidents` builds the query with keyset (cursor) pagination ending in `id`, and `GET /api/w/{slug}/incidents` serves "Load more". Search text is LIKE-escaped (`%` and `_` are literal).
+- Severity is 1..5, enforced by the `severity_range` CHECK constraint as well as Zod. The trigram index `incident_title_trgm` is declared in `schema.prisma` so `prisma migrate dev` doesn't try to drop it.
+- Service slugs are generated once and stay stable on rename. Names are unique case-insensitively per workspace.
+- Incident number labels come from the copy dictionary: `INC-42` (professional), `Haunting #42` (haunted).
+- Client/server boundary: a client component must never import a module that imports `@/generated/prisma/client` or `@/server/*` at runtime (type imports are fine). Keep Zod schemas and shared types in pure files (`schema.ts`, `list-params.ts`) and server logic elsewhere. `tsc` and the tests do NOT catch this; `NEXT_DIST_DIR=.next-check pnpm build` does, so run it after adding a client component that imports from `src/features`.
+- Component tests (`*.test.tsx`, jsdom) cover the client UI without a browser: add `// @vitest-environment jsdom`, mock `next/navigation` and `@/lib/api-client`, and call `polyfillDialog()` from `src/test/dialog-polyfill.ts` for `<dialog>`.
+- Formatting: `.prettierrc.json` sets width 120. Run prettier on the files you changed, never on whole directories (it reformats unrelated files).
+- Tests that read repo files must tolerate CRLF (a Windows checkout converts line endings).

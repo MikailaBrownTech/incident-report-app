@@ -97,7 +97,7 @@ describe("scoped client behaviour", () => {
   });
 
   it("creates through the scoped client land in its workspace", async () => {
-    const svc = await dbB.service.create({ data: { workspaceId: dbB.$workspaceId, name: `auto-${Date.now()}` } });
+    const svc = await dbB.service.create({ data: { workspaceId: dbB.$workspaceId, name: `auto-${Date.now()}`, slug: `auto-${Date.now()}` } });
     expect(svc.workspaceId).toBe(b.workspace.id);
   });
 

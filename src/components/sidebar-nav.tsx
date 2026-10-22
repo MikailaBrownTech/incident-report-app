@@ -10,10 +10,14 @@ export interface NavItem {
 
 export function SidebarNav({ items }: { items: NavItem[] }) {
   const pathname = usePathname();
+  // Settings > Services has its own entry, so highlight only the most specific match.
+  const matching = items.filter((i) => pathname === i.href || pathname.startsWith(`${i.href}/`));
+  const current = matching.sort((a, b) => b.href.length - a.href.length)[0]?.href;
+
   return (
     <nav className="space-y-1 text-sm">
       {items.map((item) => {
-        const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+        const active = item.href === current;
         return (
           <Link
             key={item.href}

@@ -159,10 +159,13 @@ model Service {
   id          String            @id @default(cuid())
   workspaceId String
   name        String
+  slug        String // generated from the name, unique per workspace, stable across renames
+  createdAt   DateTime          @default(now())
   workspace   Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   incidents   IncidentService[]
 
   @@unique([workspaceId, name])
+  @@unique([workspaceId, slug])
   @@unique([id, workspaceId])
 }
 
@@ -193,6 +196,7 @@ model Incident {
   @@unique([id, workspaceId])
   @@index([workspaceId, status])
   @@index([workspaceId, startedAt])
+  @@index([title(ops: raw("gin_trgm_ops"))], type: Gin, map: "incident_title_trgm")
 }
 
 model IncidentService {

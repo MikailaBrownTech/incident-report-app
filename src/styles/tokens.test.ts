@@ -4,7 +4,8 @@ import { describe, expect, it } from "vitest";
 import { contrastRatio } from "@/lib/contrast";
 import { contrastPairs, skinTokens, type TokenName } from "./tokens";
 
-const css = readFileSync(join(process.cwd(), "src/app/globals.css"), "utf8");
+// Normalise CRLF: a Windows checkout converts line endings, and the regexes below expect LF.
+const css = readFileSync(join(process.cwd(), "src/app/globals.css"), "utf8").replaceAll("\r\n", "\n");
 
 const cssVar = (name: TokenName) =>
   name.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`);

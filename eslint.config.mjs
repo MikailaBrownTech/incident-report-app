@@ -44,6 +44,11 @@ const eslintConfig = defineConfig([
     },
   },
   {
+    // Tests render fixtures, not product UI, so literal text is fine there.
+    files: ["src/**/*.test.tsx"],
+    rules: { "react/jsx-no-literals": "off", "no-restricted-syntax": "off" },
+  },
+  {
     // Developer-only tooling, not shipped in production builds.
     files: ["src/app/dev/**"],
     rules: { "react/jsx-no-literals": "off", "no-restricted-syntax": ["error", rawSql] },

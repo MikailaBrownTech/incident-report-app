@@ -30,7 +30,7 @@ export async function createTenant(label: string) {
   const membership = await prisma.membership.findFirstOrThrow({ where: { workspaceId: w } });
   const retroRule = await prisma.retroRule.findFirstOrThrow({ where: { workspaceId: w } });
 
-  const service = await prisma.service.create({ data: { workspaceId: w, name: `${label}-api` } });
+  const service = await prisma.service.create({ data: { workspaceId: w, name: `${label}-api`, slug: `${label}-api` } });
   const incident = await prisma.incident.create({
     data: {
       workspaceId: w,

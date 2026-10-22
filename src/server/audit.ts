@@ -7,12 +7,13 @@ export type AuditAction =
   | "invite.created"
   | "invite.resent"
   | "invite.revoked"
-  | "invite.accepted";
+  | "invite.accepted"
+  | "incident.created";
 
 export interface AuditEntry {
   actorId: string | null;
   action: AuditAction;
-  targetType: "workspace" | "member" | "invite";
+  targetType: "workspace" | "member" | "invite" | "incident";
   targetId: string;
   metadata?: Record<string, string | number | boolean | null>;
 }

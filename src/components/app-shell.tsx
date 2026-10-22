@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { DeclareIncidentButton } from "@/components/declare-incident";
 import { Fog } from "@/components/fog";
 import { SidebarFrame } from "@/components/sidebar-frame";
 import { SidebarNav } from "@/components/sidebar-nav";
@@ -41,6 +42,8 @@ export function AppShell({ skin, slug, userEmail, workspaces, children }: AppShe
           <SidebarNav
             items={[
               { href: `${base}/dashboard`, label: t.nav.dashboard },
+              { href: `${base}/incidents`, label: t.nav.incidents },
+              { href: `${base}/settings/services`, label: t.nav.services },
               { href: `${base}/settings`, label: t.nav.settings },
             ]}
           />
@@ -54,9 +57,14 @@ export function AppShell({ skin, slug, userEmail, workspaces, children }: AppShe
           </div>
         </div>
       </SidebarFrame>
-      <main id="content" className="relative z-10 min-w-0 flex-1 p-4 md:p-8">
-        {children}
-      </main>
+      <div className="relative z-10 min-w-0 flex-1">
+        <div className="flex items-center justify-end border-b border-border bg-bg/80 px-4 py-3 md:px-8">
+          <DeclareIncidentButton />
+        </div>
+        <main id="content" className="p-4 md:p-8">
+          {children}
+        </main>
+      </div>
     </div>
   );
 }

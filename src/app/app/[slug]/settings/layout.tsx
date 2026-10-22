@@ -18,6 +18,9 @@ export default async function SettingsLayout({ children, params }: LayoutProps<"
         <Link href={`/app/${slug}/settings/members`} className={tab}>
           {t.nav.members}
         </Link>
+        <Link href={`/app/${slug}/settings/services`} className={tab}>
+          {t.nav.services}
+        </Link>
       </nav>
       {children}
     </div>
