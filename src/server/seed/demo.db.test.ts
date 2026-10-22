@@ -2,6 +2,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { listIncidents } from "@/features/incidents/list";
 import { parseListParams } from "@/features/incidents/list-params";
 import { listServices } from "@/features/services/service";
+import { listTimeline } from "@/features/timeline/queries";
 import { prisma } from "@/server/db/client";
 import { scopedDb } from "@/server/db/tenant";
 import { createUser } from "@/test/fixtures";
@@ -129,6 +130,61 @@ describe("demo seed", () => {
     expect(escalated.length).toBeGreaterThanOrEqual(1);
   });
 
+  it("gives every incident a timeline of notes written by the seed people, recorded when they happened", async () => {
+    const seedPeople = new Set(
+      (await prisma.user.findMany({ where: { id: { startsWith: "seed-user-" } } })).map((u) => u.id),
+    );
+    const incidents = await prisma.incident.findMany({
+      where: { workspaceId: wsId },
+      include: { events: true },
+    });
+    for (const inc of incidents) {
+      const notes = inc.events.filter((e) => e.type === "NOTE");
+      expect(notes.length, `#${inc.number} has notes`).toBeGreaterThanOrEqual(2);
+      for (const n of notes) {
+        expect(n.source).toBe("USER");
+        expect(seedPeople.has(n.actorId!), `#${inc.number} author`).toBe(true);
+        expect(n.body!.length).toBeGreaterThan(10);
+        expect(n.occurredAt >= inc.startedAt && n.occurredAt <= (inc.resolvedAt ?? NOW)).toBe(true);
+        expect(n.updatedAt.getTime()).toBe(n.createdAt.getTime());
+      }
+      // the automatic entries make the incident's own history readable too
+      expect(inc.events.some((e) => e.type === "STATUS_CHANGED")).toBe(true);
+    }
+  });
+
+  it("marks one key moment on each of two resolved incidents and nowhere else", async () => {
+    const keys = await prisma.event.findMany({
+      where: { workspaceId: wsId, isKeyMoment: true },
+      include: { incident: true },
+    });
+    expect(keys).toHaveLength(2);
+    expect(keys.map((k) => k.incident.number).sort((a, b) => a - b)).toEqual([3, 6]);
+    for (const k of keys) {
+      expect(k.incident.status).toBe("RESOLVED");
+      expect(k.type).toBe("NOTE");
+    }
+  });
+
+  it("includes one backfilled note, recorded well after it happened, and no other entry looks late", async () => {
+    const events = await prisma.event.findMany({ where: { workspaceId: wsId }, include: { incident: true } });
+    const late = events.filter((e) => e.createdAt.getTime() - e.occurredAt.getTime() > 2 * 60_000);
+    expect(late).toHaveLength(1);
+    expect(late[0]).toMatchObject({ type: "NOTE", incident: { number: 10 } });
+    expect(late[0].createdAt <= NOW).toBe(true);
+  });
+
+  it("shows the timeline through the app's own query, oldest to newest with ties broken by id", async () => {
+    const db = scopedDb(wsId);
+    const inc = await prisma.incident.findFirstOrThrow({ where: { workspaceId: wsId, number: 3 } });
+    const asc = await listTimeline(db, inc.id, { filter: "all", order: "asc", limit: 100 });
+    const times = asc.items.map((e) => e.occurredAt);
+    expect([...times].sort()).toEqual(times);
+    expect(asc.items.filter((e) => e.isKeyMoment)).toHaveLength(1);
+    const keyOnly = await listTimeline(db, inc.id, { filter: "key", order: "asc", limit: 100 });
+    expect(keyOnly.items.map((e) => e.body)).toEqual(["Rolled back release 4812."]);
+  });
+
   it("includes look-alike titles that trigram matching actually pairs up", async () => {
     const title = async (n: number) =>
       (await prisma.incident.findFirstOrThrow({ where: { workspaceId: wsId, number: n } })).title;
@@ -207,6 +263,60 @@ describe("running it again", () => {
     expect(result).toMatchObject({ createdIncidents: 1, skippedIncidents: 14 });
     expect(await prisma.incident.count({ where: { workspaceId: wsId } })).toBe(15);
     expect(await prisma.service.count({ where: { workspaceId: wsId } })).toBe(8);
+  });
+});
+
+describe("older seeded timelines", () => {
+  const marker = (payload: unknown) => (payload as { seedVersion?: number } | null)?.seedVersion;
+
+  it("are rebuilt once, to the current shape, when only seed people touched them", async () => {
+    const inc = await prisma.incident.findFirstOrThrow({ where: { workspaceId: wsId, number: 8 } });
+    // what the previous seed wrote: no marker, and every entry recorded at seed time
+    await prisma.event.updateMany({ where: { incidentId: inc.id }, data: { createdAt: NOW } });
+    const first = await prisma.event.findFirstOrThrow({
+      where: { incidentId: inc.id, type: "STATUS_CHANGED" },
+      orderBy: { occurredAt: "asc" },
+    });
+    await prisma.event.update({ where: { id: first.id }, data: { payload: { to: "INVESTIGATING", created: true } } });
+
+    const before = await counts();
+    const result = await seedDemo(prisma, { now: NOW });
+    expect(result.createdIncidents).toBe(0);
+    expect(await counts()).toEqual(before); // same number of events, nothing duplicated
+
+    const events = await prisma.event.findMany({ where: { incidentId: inc.id }, orderBy: { occurredAt: "asc" } });
+    expect(marker(events[0].payload)).toBe(2);
+    expect(events.every((e) => e.createdAt.getTime() === e.occurredAt.getTime())).toBe(true);
+
+    // and now that it is current it is left alone
+    const ids = events.map((e) => e.id);
+    await seedDemo(prisma, { now: NOW });
+    expect(
+      (await prisma.event.findMany({ where: { incidentId: inc.id }, orderBy: { occurredAt: "asc" } })).map((e) => e.id),
+    ).toEqual(ids);
+    expect(marker(events[0].payload)).toBe(2);
+  });
+
+  it("are left alone when a real person has added to them", async () => {
+    const inc = await prisma.incident.findFirstOrThrow({ where: { workspaceId: wsId, number: 9 } });
+    const human = await createUser("writer");
+    const first = await prisma.event.findFirstOrThrow({
+      where: { incidentId: inc.id, type: "STATUS_CHANGED" },
+      orderBy: { occurredAt: "asc" },
+    });
+    await prisma.event.update({ where: { id: first.id }, data: { payload: { to: "INVESTIGATING", created: true } } });
+    await prisma.event.create({
+      data: {
+        workspaceId: wsId,
+        incidentId: inc.id,
+        type: "NOTE",
+        actorId: human.id,
+        body: "written by a real person",
+        occurredAt: new Date(inc.startedAt.getTime() + 60_000),
+      },
+    });
+    await seedDemo(prisma, { now: NOW });
+    expect(await prisma.event.count({ where: { incidentId: inc.id, body: "written by a real person" } })).toBe(1);
   });
 });
 

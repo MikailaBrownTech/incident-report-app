@@ -38,6 +38,19 @@ const SERVICES = [
 type ServiceName = (typeof SERVICES)[number];
 const slugOf = (name: string) => name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
 
+/** A manual timeline note. `minutesAfterStart` is when it happened; `recordedLaterMin` is a backfill (written down afterwards). */
+interface SeedNote {
+  minutesAfterStart: number;
+  text: string;
+  /** Person key; defaults to the scribe, then the commander. */
+  author?: string;
+  key?: boolean;
+  recordedLaterMin?: number;
+}
+
+/** Marks events written by this version of the seed, so older-shaped demo incidents can be rebuilt once. */
+const SEED_VERSION = 2;
+
 interface Spec {
   number: number;
   title: string;
@@ -50,7 +63,7 @@ interface Spec {
   durationMin?: number;
   services: ServiceName[];
   roles: { COMMANDER?: string; SCRIBE?: string; COMMS?: string };
-  notes?: string[];
+  notes?: SeedNote[];
   /** Earlier severity, if it was escalated or downgraded during the incident. */
   initialSeverity?: number;
 }
@@ -67,7 +80,15 @@ const SPECS: Spec[] = [
     durationMin: 95,
     services: ["Auth", "Web App"],
     roles: { COMMANDER: person("sam"), SCRIBE: person("priya") },
-    notes: ["Reproduced on Safari 17.2 only.", "Hotfix deployed; loop gone in the canary."],
+    notes: [
+      { minutesAfterStart: 12, text: "Reproduced on Safari 17.2 only." },
+      {
+        minutesAfterStart: 40,
+        text: "Cookie is set after the redirect; checking the middleware order.",
+        author: "sam",
+      },
+      { minutesAfterStart: 80, text: "Hotfix deployed; loop gone in the canary." },
+    ],
   },
   {
     number: 2,
@@ -79,6 +100,10 @@ const SPECS: Spec[] = [
     durationMin: 40,
     services: ["Search"],
     roles: { COMMANDER: person("priya") },
+    notes: [
+      { minutesAfterStart: 8, text: "Index shows the new products; the search tier is serving a cached snapshot." },
+      { minutesAfterStart: 30, text: "Forced a cache refresh; results are fresh again." },
+    ],
   },
   {
     number: 3,
@@ -92,9 +117,10 @@ const SPECS: Spec[] = [
     services: ["Checkout API", "Database"],
     roles: { COMMANDER: person("riley"), SCRIBE: person("sam"), COMMS: person("morgan") },
     notes: [
-      "p99 latency 9.2s, error rate 12%.",
-      "Rolled back release 4812.",
-      "Pool saturation confirmed; added a 5s statement timeout.",
+      { minutesAfterStart: 12, text: "p99 latency 9.2s, error rate 12%." },
+      { minutesAfterStart: 38, text: "Rolled back release 4812.", key: true, author: "riley" },
+      { minutesAfterStart: 95, text: "Pool saturation confirmed; added a 5s statement timeout." },
+      { minutesAfterStart: 140, text: "Error rate back under 0.1%. Watching for another 15 minutes." },
     ],
   },
   {
@@ -108,6 +134,11 @@ const SPECS: Spec[] = [
     durationMin: 220,
     services: ["Notifications"],
     roles: { COMMANDER: person("diego"), SCRIBE: person("priya") },
+    notes: [
+      { minutesAfterStart: 25, text: "Queue depth is climbing; one worker is stuck on the same message." },
+      { minutesAfterStart: 120, text: "Poison message moved to the dead-letter queue; the backlog is draining." },
+      { minutesAfterStart: 200, text: "Backlog cleared." },
+    ],
   },
   {
     number: 5,
@@ -120,7 +151,10 @@ const SPECS: Spec[] = [
     durationMin: 75,
     services: ["Payments"],
     roles: { COMMANDER: person("sam"), COMMS: person("riley") },
-    notes: ["Provider dashboard shows 100% 5xx from us since 08:10."],
+    notes: [
+      { minutesAfterStart: 10, text: "Provider dashboard shows 100% 5xx from us since 08:10." },
+      { minutesAfterStart: 45, text: "Signing secret in our config predates the key rotation. Updating it now." },
+    ],
   },
   {
     number: 6,
@@ -134,7 +168,12 @@ const SPECS: Spec[] = [
     durationMin: 312,
     services: ["Database", "API Gateway", "Checkout API", "Web App"],
     roles: { COMMANDER: person("morgan"), SCRIBE: person("riley"), COMMS: person("priya") },
-    notes: ["Escalating: writes are failing everywhere.", "Replica promoted; restarting stuck services one by one."],
+    notes: [
+      { minutesAfterStart: 6, text: "Escalating: writes are failing everywhere.", key: true, author: "riley" },
+      { minutesAfterStart: 40, text: "Replica promoted; restarting stuck services one by one." },
+      { minutesAfterStart: 180, text: "Two services still hold stale connections; restarting them." },
+      { minutesAfterStart: 290, text: "All write paths healthy. Starting the follow-up list." },
+    ],
   },
   {
     number: 7,
@@ -146,6 +185,10 @@ const SPECS: Spec[] = [
     durationMin: 130,
     services: ["API Gateway", "Web App"],
     roles: { COMMANDER: person("diego") },
+    notes: [
+      { minutesAfterStart: 15, text: "413s start exactly at the proxy config rollout." },
+      { minutesAfterStart: 110, text: "Raised the body size limit back to 25 MB; uploads succeed." },
+    ],
   },
   {
     number: 8,
@@ -158,7 +201,10 @@ const SPECS: Spec[] = [
     durationMin: 48,
     services: ["Checkout API"],
     roles: { COMMANDER: person("sam"), SCRIBE: person("diego") },
-    notes: ["Looks like the same shape as the earlier timeouts."],
+    notes: [
+      { minutesAfterStart: 6, text: "Looks like the same shape as the earlier timeouts." },
+      { minutesAfterStart: 30, text: "Index added on the orders table; latency recovering." },
+    ],
   },
   {
     number: 9,
@@ -170,6 +216,10 @@ const SPECS: Spec[] = [
     durationMin: 33,
     services: ["API Gateway"],
     roles: { COMMANDER: person("riley") },
+    notes: [
+      { minutesAfterStart: 5, text: "Health checks are being counted against the new rule." },
+      { minutesAfterStart: 25, text: "Excluded internal ranges from the rule." },
+    ],
   },
   {
     number: 10,
@@ -182,7 +232,18 @@ const SPECS: Spec[] = [
     durationMin: 205,
     services: ["Payments", "Notifications"],
     roles: { COMMANDER: person("morgan"), SCRIBE: person("sam"), COMMS: person("riley") },
-    notes: ["Replayed 1,284 events from the provider dashboard."],
+    notes: [
+      {
+        minutesAfterStart: 20,
+        text: "Our handler rejects deliveries with a duplicate idempotency key, including retries.",
+      },
+      { minutesAfterStart: 90, text: "Fix for the key check is in review." },
+      {
+        minutesAfterStart: 170,
+        text: "Replayed 1,284 events from the provider dashboard.",
+        recordedLaterMin: 90,
+      },
+    ],
   },
   {
     number: 11,
@@ -194,7 +255,10 @@ const SPECS: Spec[] = [
     startedAgo: 1 * DAY + 6 * HOUR,
     services: ["Search"],
     roles: { COMMANDER: person("priya"), SCRIBE: person("diego") },
-    notes: ["Shard count is the bottleneck; query planning is fine."],
+    notes: [
+      { minutesAfterStart: 50, text: "Shard count is the bottleneck; query planning is fine." },
+      { minutesAfterStart: 240, text: "Reshard is scheduled for tonight's low-traffic window.", author: "diego" },
+    ],
   },
   {
     number: 12,
@@ -205,6 +269,10 @@ const SPECS: Spec[] = [
     startedAgo: 7 * HOUR,
     services: ["Auth", "API Gateway"],
     roles: { COMMANDER: person("sam") },
+    notes: [
+      { minutesAfterStart: 40, text: "Only clients offline for more than an hour are affected." },
+      { minutesAfterStart: 150, text: "Suspect the refresh token cache TTL; reproducing locally." },
+    ],
   },
   {
     number: 13,
@@ -217,7 +285,11 @@ const SPECS: Spec[] = [
     startedAgo: 3 * HOUR,
     services: ["Checkout API", "Web App", "API Gateway", "Database"],
     roles: { COMMANDER: person("riley"), SCRIBE: person("sam"), COMMS: person("morgan") },
-    notes: ["Rollback to the previous release is 60% done.", "Support has a macro ready for affected customers."],
+    notes: [
+      { minutesAfterStart: 8, text: "502s started right after the 09:40 deploy." },
+      { minutesAfterStart: 90, text: "Rollback to the previous release is 60% done." },
+      { minutesAfterStart: 140, text: "Support has a macro ready for affected customers." },
+    ],
   },
   {
     number: 14,
@@ -229,6 +301,10 @@ const SPECS: Spec[] = [
     startedAgo: 45 * MIN,
     services: ["Web App"],
     roles: { COMMANDER: person("diego") },
+    notes: [
+      { minutesAfterStart: 10, text: "Purge requests return 200 but the edge keeps the old object." },
+      { minutesAfterStart: 30, text: "Opened a ticket with the CDN provider." },
+    ],
   },
   {
     number: 15,
@@ -240,10 +316,29 @@ const SPECS: Spec[] = [
     startedAgo: 90 * MIN,
     services: ["Payments"],
     roles: {},
+    notes: [
+      { minutesAfterStart: 15, text: "Same 5xx signature as the earlier webhook incidents." },
+      { minutesAfterStart: 55, text: "Checking whether the idempotency key fix regressed." },
+    ],
   },
 ];
 
 const ORDER: IncidentStatus[] = ["INVESTIGATING", "IDENTIFIED", "MITIGATING", "RESOLVED"];
+
+/**
+ * True when an incident was seeded by an older version (no marker on its first event) and only seed people
+ * touched its timeline, so replacing the events can't lose anything a person wrote.
+ */
+async function rebuildOldTimeline(db: PrismaClient, workspaceId: string, incidentId: string): Promise<boolean> {
+  const events = await db.event.findMany({
+    where: { workspaceId, incidentId },
+    select: { actorId: true, payload: true },
+  });
+  const seedActors = new Set<string>(PEOPLE.map((p) => p.id));
+  if (events.some((e) => e.actorId && !seedActors.has(e.actorId))) return false;
+  const marked = events.some((e) => (e.payload as { seedVersion?: number } | null)?.seedVersion === SEED_VERSION);
+  return !marked;
+}
 
 export interface SeedResult {
   workspaceId: string;
@@ -324,14 +419,20 @@ export async function seedDemo(db: PrismaClient, options: { now?: Date } = {}): 
   // --- incidents ------------------------------------------------------------------------------
   let created = 0;
   let skipped = 0;
+  const rebuilding = new Map<number, string>();
   for (const spec of SPECS) {
     const found = await db.incident.findUnique({
       where: { workspaceId_number: { workspaceId, number: spec.number } },
       select: { id: true },
     });
     if (found) {
-      skipped += 1;
-      continue;
+      if (await rebuildOldTimeline(db, workspaceId, found.id)) {
+        await db.event.deleteMany({ where: { workspaceId, incidentId: found.id } });
+        rebuilding.set(spec.number, found.id);
+      } else {
+        skipped += 1;
+        continue;
+      }
     }
 
     const startedAt = new Date(now.getTime() - spec.startedAgo);
@@ -350,7 +451,7 @@ export async function seedDemo(db: PrismaClient, options: { now?: Date } = {}): 
       type: "STATUS_CHANGED",
       source: "SYSTEM",
       actorId: person("morgan"),
-      payload: { to: "INVESTIGATING", created: true },
+      payload: { to: "INVESTIGATING", created: true, seedVersion: SEED_VERSION },
       occurredAt: startedAt,
     });
     let step = 0;
@@ -384,14 +485,29 @@ export async function seedDemo(db: PrismaClient, options: { now?: Date } = {}): 
       });
       previous = to;
     });
-    (spec.notes ?? []).forEach((body, i, all) => {
+    for (const note of spec.notes ?? []) {
+      const occurredAt = new Date(startedAt.getTime() + note.minutesAfterStart * MIN);
       addEvent({
         type: "NOTE",
-        actorId: spec.roles.SCRIBE ?? commander,
-        body,
-        occurredAt: at(0.1 + (0.7 * (i + 1)) / (all.length + 1)),
+        actorId: note.author ? person(note.author) : (spec.roles.SCRIBE ?? commander),
+        body: note.text,
+        occurredAt,
+        isKeyMoment: note.key ?? false,
+        // a backfilled note was written down later than it happened
+        createdAt: new Date(occurredAt.getTime() + (note.recordedLaterMin ?? 0) * MIN),
       });
-    });
+    }
+    // Everything else was recorded the moment it happened.
+    for (const e of events) {
+      e.createdAt ??= e.occurredAt;
+      e.updatedAt = e.createdAt;
+    }
+
+    const rebuildId = rebuilding.get(spec.number);
+    if (rebuildId) {
+      await db.event.createMany({ data: events.map((e) => ({ ...e, incidentId: rebuildId })) });
+      continue;
+    }
 
     await db.$transaction(async (tx) => {
       const incident = await tx.incident.create({

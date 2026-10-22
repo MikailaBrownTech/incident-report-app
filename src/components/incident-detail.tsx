@@ -6,6 +6,7 @@ import { useRef, useState, type FormEvent } from "react";
 import { SeverityBadge, StatusPill } from "@/components/badges";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { dangerButton, inputClass, labelClass, primaryButton, secondaryButton } from "@/components/form";
+import { IncidentTimeline } from "@/components/incident-timeline";
 import { Markdown } from "@/components/markdown";
 import { ServicePicker, type PickerService } from "@/components/service-picker";
 import { LiveDuration, RelativeTime } from "@/components/time-display";
@@ -22,6 +23,7 @@ import {
   type RoleKey,
   type StatusKey,
 } from "@/features/incidents/schema";
+import type { TimelineFilter, TimelineOrder, TimelinePage } from "@/features/timeline/schema";
 import { api, type ApiResult } from "@/lib/api-client";
 
 interface Props {
@@ -31,18 +33,31 @@ interface Props {
   services: PickerService[];
   severityLabels: SeverityOverrides;
   canDelete: boolean;
+  currentUserId: string;
+  timeline: { page: TimelinePage; filter: TimelineFilter; order: TimelineOrder };
 }
 
 type Saved = ApiResult<{ incident: IncidentDetailView }>;
 
 const SEVERITIES: SeverityLevel[] = [1, 2, 3, 4, 5];
 
-export function IncidentDetail({ slug, initial, members, services, severityLabels, canDelete }: Props) {
+export function IncidentDetail({
+  slug,
+  initial,
+  members,
+  services,
+  severityLabels,
+  canDelete,
+  currentUserId,
+  timeline,
+}: Props) {
   const t = useCopy();
   const toast = useToast();
   const router = useRouter();
   const [incident, setIncident] = useState(initial);
   const inFlight = useRef(0);
+  // bumped after every saved change, so the timeline shows the entry it produced straight away
+  const [timelineTick, setTimelineTick] = useState(0);
   const base = `/api/w/${slug}/incidents/${incident.number}`;
 
   const [editingTitle, setEditingTitle] = useState(false);
@@ -73,6 +88,7 @@ export function IncidentDetail({ slug, initial, members, services, severityLabel
       return false;
     }
     if (inFlight.current === 0) setIncident(result.data.incident);
+    setTimelineTick((n) => n + 1);
     return true;
   }
 
@@ -327,15 +343,18 @@ export function IncidentDetail({ slug, initial, members, services, severityLabel
           )}
         </section>
 
-        <section
-          className="space-y-2 rounded border border-dashed border-border p-4"
-          aria-labelledby="timeline-heading"
-        >
-          <h2 id="timeline-heading" className="text-lg font-semibold">
-            {t.incidentDetail.timelineHeading}
-          </h2>
-          <p className="text-sm text-muted">{t.incidentDetail.timelinePlaceholder}</p>
-        </section>
+        <IncidentTimeline
+          slug={slug}
+          number={incident.number}
+          incidentStartedAt={incident.startedAt}
+          initial={timeline.page}
+          initialFilter={timeline.filter}
+          initialOrder={timeline.order}
+          currentUserId={currentUserId}
+          isAdmin={canDelete}
+          severityLabels={severityLabels}
+          refreshSignal={timelineTick}
+        />
       </div>
 
       <aside

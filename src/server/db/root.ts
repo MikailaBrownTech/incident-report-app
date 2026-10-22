@@ -164,3 +164,14 @@ export async function acceptInvite(input: {
   if (!won) return { status: "used" };
   return { status: "accepted", slug: found.workspace.slug };
 }
+
+/**
+ * Names for user ids that appear in one workspace's own data (event authors, role holders), including people who
+ * have since left it. Unscoped on purpose (the auth tables aren't reachable from a scoped client), so callers must
+ * only pass ids they read from that workspace.
+ */
+export async function usersByIds(ids: string[]) {
+  const unique = [...new Set(ids)];
+  if (unique.length === 0) return [];
+  return prisma.user.findMany({ where: { id: { in: unique } }, select: { id: true, name: true, email: true, image: true } });
+}

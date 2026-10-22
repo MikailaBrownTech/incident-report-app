@@ -4,13 +4,16 @@ import type { SeverityOverrides } from "@/copy";
 import { getIncidentDetail } from "@/features/incidents/detail";
 import { incidentNumberSchema } from "@/features/incidents/schema";
 import { listServices } from "@/features/services/service";
+import { listTimeline } from "@/features/timeline/queries";
+import { DEFAULT_LIMIT, parseTimelineView } from "@/features/timeline/schema";
 import { listMembers } from "@/features/workspaces/queries";
 import { getWorkspaceContext } from "@/server/auth/context";
 import { hasRole } from "@/server/auth/permissions";
 
 /** Incident detail. Missing, soft-deleted and other workspaces' incidents are all the same 404. */
-export default async function IncidentPage({ params }: PageProps<"/app/[slug]/incidents/[number]">) {
+export default async function IncidentPage({ params, searchParams }: PageProps<"/app/[slug]/incidents/[number]">) {
   const { slug, number } = await params;
+  const view = parseTimelineView(await searchParams);
   if (!incidentNumberSchema.safeParse(number).success) notFound();
   const ctx = await getWorkspaceContext(slug);
 
@@ -20,6 +23,8 @@ export default async function IncidentPage({ params }: PageProps<"/app/[slug]/in
     listServices(ctx.db),
   ]);
   if (!incident) notFound();
+  // The newest entries first; the client reverses them for oldest-first display and pages backwards from here.
+  const page = await listTimeline(ctx.db, incident.id, { filter: view.filter, order: "desc", limit: DEFAULT_LIMIT });
 
   return (
     <IncidentDetail
@@ -31,6 +36,8 @@ export default async function IncidentPage({ params }: PageProps<"/app/[slug]/in
       services={services.map((s) => ({ id: s.id, name: s.name }))}
       severityLabels={ctx.workspace.severityLabels as SeverityOverrides}
       canDelete={hasRole(ctx.membership.role, "ADMIN")}
+      currentUserId={ctx.user.id}
+      timeline={{ page, filter: view.filter, order: view.order }}
     />
   );
 }

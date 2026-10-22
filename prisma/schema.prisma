@@ -225,10 +225,12 @@ model IncidentAssignment {
 }
 
 // ---------- Events (timeline; webhook-ready) ----------
+// USER = entered by a person (notes and the changes they make), SYSTEM = automatic, INTEGRATION = webhook, SLACK = Slack.
 enum EventSource {
   USER
   SYSTEM
   INTEGRATION
+  SLACK
 }
 
 enum EventType {
@@ -261,10 +263,14 @@ model Event {
   createdAt     DateTime    @default(now()) // when we recorded it
   integrationId String?
   externalId    String? // idempotency key for webhook ingestion
+  editedAt      DateTime? // set when a note's text or time is edited
+  updatedAt     DateTime    @default(now()) @updatedAt // any change at all (edit, star): lets live refresh spot it
+  isKeyMoment   Boolean     @default(false) // pulled into postmortems in a later milestone
   incident      Incident    @relation(fields: [incidentId, workspaceId], references: [id, workspaceId], onDelete: Cascade)
 
   @@unique([integrationId, externalId])
   @@index([workspaceId, incidentId, occurredAt])
+  @@index([incidentId, occurredAt, id]) // timeline paging: ordered by when it happened, id breaks ties
 }
 
 // Extension point for Slack / PagerDuty / etc. Unused in v1.

@@ -14,6 +14,26 @@ const apiMock = vi.hoisted(() => vi.fn());
 const nav = vi.hoisted(() => ({ push: vi.fn() }));
 vi.mock("@/lib/api-client", () => ({ api: apiMock }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: nav.push, refresh: vi.fn() }) }));
+vi.mock("@/components/incident-timeline", () => ({
+  IncidentTimeline: (p: {
+    number: number;
+    currentUserId: string;
+    isAdmin: boolean;
+    refreshSignal?: number;
+    initialFilter: string;
+    initialOrder: string;
+  }) => (
+    <div
+      data-testid="timeline-stub"
+      data-number={p.number}
+      data-user={p.currentUserId}
+      data-admin={String(p.isAdmin)}
+      data-signal={p.refreshSignal}
+      data-filter={p.initialFilter}
+      data-order={p.initialOrder}
+    />
+  ),
+}));
 vi.mock("next/link", () => ({
   default: ({ href, children, ...rest }: { href: string; children: ReactNode }) => (
     <a href={href} {...rest}>
@@ -70,6 +90,12 @@ function setup(
           services={services}
           severityLabels={opts.severityLabels ?? null}
           canDelete={opts.canDelete ?? false}
+          currentUserId="u-me"
+          timeline={{
+            page: { items: [], nextCursor: null, people: {}, asOf: new Date().toISOString() },
+            filter: "all",
+            order: "asc",
+          }}
         />
       </ToastProvider>
     </CopyProvider>,
@@ -89,8 +115,7 @@ describe("rendering", () => {
     expect(panel().getByLabelText(d.statusLabel)).toHaveValue("INVESTIGATING");
     expect(panel().getByLabelText(d.severityLabel)).toHaveValue("3");
     expect(panel().getByText("Owen Owner")).toBeInTheDocument();
-    expect(screen.getByText(d.timelinePlaceholder)).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: d.timelineHeading })).toBeInTheDocument();
+    expect(screen.getByTestId("timeline-stub")).toHaveAttribute("data-number", "5"); // the real timeline replaced the placeholder
     expect(screen.queryByTestId("resolved-at")).toBeNull(); // only shown once resolved
     expect(screen.queryByRole("button", { name: d.reopen })).toBeNull();
     expect(screen.queryByRole("button", { name: d.deleteIncident })).toBeNull(); // members can't delete
@@ -132,7 +157,7 @@ describe("rendering", () => {
     ).toBeInTheDocument();
     expect(panel().getByLabelText(h.incidentRole.COMMANDER)).toBeInTheDocument(); // "Exorcist"
     expect(screen.getByRole("note")).toHaveTextContent("Assign an Exorcist");
-    expect(screen.getByText(h.incidentDetail.timelineHeading)).toBeInTheDocument();
+    expect(screen.getByTestId("timeline-stub")).toBeInTheDocument();
   });
 
   it("renders summary markdown safely", () => {
@@ -140,6 +165,31 @@ describe("rendering", () => {
     expect(document.querySelector("script")).toBeNull();
     expect(document.querySelector("a[href^='javascript']")).toBeNull();
     expect(screen.getByText(/ok/)).toBeInTheDocument();
+  });
+});
+
+describe("timeline hookup", () => {
+  it("gives the timeline the incident, the viewer and their rights", () => {
+    setup(base(), { canDelete: true });
+    const stub = screen.getByTestId("timeline-stub");
+    expect(stub).toHaveAttribute("data-user", "u-me");
+    expect(stub).toHaveAttribute("data-admin", "true");
+    expect(stub).toHaveAttribute("data-filter", "all");
+    expect(stub).toHaveAttribute("data-order", "asc");
+    cleanup();
+    setup(base(), { canDelete: false });
+    expect(screen.getByTestId("timeline-stub")).toHaveAttribute("data-admin", "false");
+  });
+
+  it("asks it to refresh after each saved change, but not after a failed one", async () => {
+    apiMock.mockResolvedValueOnce(ok(base({ severity: 5 }))).mockResolvedValueOnce(fail());
+    setup();
+    const signal = () => screen.getByTestId("timeline-stub").getAttribute("data-signal");
+    expect(signal()).toBe("0");
+    await act(async () => fireEvent.change(panel().getByLabelText(d.severityLabel), { target: { value: "5" } }));
+    expect(signal()).toBe("1");
+    await act(async () => fireEvent.change(panel().getByLabelText(d.severityLabel), { target: { value: "1" } }));
+    expect(signal()).toBe("1"); // the failed save produced no entry
   });
 });
 

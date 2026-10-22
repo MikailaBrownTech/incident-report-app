@@ -12,7 +12,8 @@ export type AuditAction =
   | "incident.status_changed"
   | "incident.severity_changed"
   | "incident.role_changed"
-  | "incident.deleted";
+  | "incident.deleted"
+  | "incident.note_deleted";
 
 export interface AuditEntry {
   actorId: string | null;
