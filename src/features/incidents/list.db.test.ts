@@ -110,7 +110,7 @@ describe("listIncidents", () => {
     const seen: number[] = [];
     let after: string | undefined;
     for (let pageNo = 0; pageNo < 10; pageNo++) {
-      const page = await list(db, { ...params, ...(after ? { after } : {}) }, 2);
+      const page = await list(db, { ...params, ...(after ? { cursor: after } : {}) }, 2);
       seen.push(...numbers(page));
       if (!page.nextCursor) break;
       after = page.nextCursor;
@@ -118,7 +118,7 @@ describe("listIncidents", () => {
     expect(seen).toEqual(numbers(await list(db, params)));
     expect(new Set(seen).size).toBe(6);
 
-    const last = await list(db, { ...params, after: after! }, 2);
+    const last = await list(db, { ...params, cursor: after! }, 2);
     expect(last.nextCursor).toBeNull();
     const exact = await list(db, params, 6);
     expect(exact.nextCursor).toBeNull(); // exactly one full page: no phantom next page

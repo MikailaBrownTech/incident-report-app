@@ -1,6 +1,6 @@
 import { declareIncident, declareIncidentBody, type DeclareError } from "@/features/incidents/declare";
 import { listIncidents } from "@/features/incidents/list";
-import { parseListParams, rawFromSearchParams } from "@/features/incidents/list-params";
+import { parseListQuery, rawFromSearchParams } from "@/features/incidents/list-params";
 import { ApiError, handle, json, readBody } from "@/server/api/http";
 import { getApiWorkspaceContext } from "@/server/auth/context";
 
@@ -17,11 +17,12 @@ const FAILURES: Record<DeclareError, ApiError> = {
   }),
 };
 
-/** GET /api/w/{slug}/incidents: one filtered, sorted page. Query: q, status, severity, service, from, to, open, sort, dir, after. */
+/** GET /api/w/{slug}/incidents: one filtered, sorted page. Query: q, status, severity, service, from, to, open, sort, dir, limit (1-100, default 25), cursor. */
 export const GET = handle(async (request: Request, { params }: RouteContext<"/api/w/[slug]/incidents">) => {
   const ctx = await getApiWorkspaceContext((await params).slug);
-  const listParams = parseListParams(rawFromSearchParams(new URL(request.url).searchParams));
-  return json(await listIncidents(ctx.db, listParams));
+  const parsed = parseListQuery(rawFromSearchParams(new URL(request.url).searchParams));
+  if (!parsed.ok) throw new ApiError(400, "validation_error", "Some filters are invalid.", parsed.fieldErrors);
+  return json(await listIncidents(ctx.db, parsed.params));
 });
 
 /** POST /api/w/{slug}/incidents: declare an incident. Any member can; creating services inline needs an admin. */

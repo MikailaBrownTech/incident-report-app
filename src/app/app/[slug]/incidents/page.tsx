@@ -21,7 +21,7 @@ export default async function IncidentsPage({ params, searchParams }: PageProps<
   // The filters without the cursor: used as the list's key and to fetch further pages.
   const query = new URLSearchParams();
   for (const [key, value] of Object.entries(raw)) {
-    if (key === "after" || value === undefined) continue;
+    if (key === "cursor" || value === undefined) continue;
     for (const v of Array.isArray(value) ? value : [value]) query.append(key, v);
   }
   const queryString = query.toString();

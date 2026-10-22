@@ -8,7 +8,11 @@ export type AuditAction =
   | "invite.resent"
   | "invite.revoked"
   | "invite.accepted"
-  | "incident.created";
+  | "incident.created"
+  | "incident.status_changed"
+  | "incident.severity_changed"
+  | "incident.role_changed"
+  | "incident.deleted";
 
 export interface AuditEntry {
   actorId: string | null;

@@ -37,6 +37,32 @@ describe("scopeArgs", () => {
     ).toMatchObject({ where: { id: "x", workspaceId: A }, create: { workspaceId: A } });
   });
 
+  it("hides soft-deleted incidents from reads and updates, unless asked explicitly", () => {
+    for (const op of ["findMany", "findFirst", "count", "aggregate", "groupBy", "updateMany", "deleteMany"]) {
+      expect(scopeArgs("Incident", op, { where: { severity: 3 } }, A)).toMatchObject({
+        where: { severity: 3, workspaceId: A, deletedAt: null },
+      });
+      expect(scopeArgs("Incident", op, undefined, A)).toMatchObject({ where: { workspaceId: A, deletedAt: null } });
+    }
+    for (const op of ["findUnique", "findUniqueOrThrow", "update", "delete"]) {
+      const args = op === "update" ? { where: { id: "x" }, data: { title: "t" } } : { where: { id: "x" } };
+      expect(scopeArgs("Incident", op, args, A)).toMatchObject({ where: { id: "x", workspaceId: A, deletedAt: null } });
+    }
+    expect(scopeArgs("Incident", "upsert", { where: { id: "x" }, create: {}, update: {} }, A)).toMatchObject({
+      where: { id: "x", deletedAt: null },
+    });
+    // explicit deletedAt (a value, or undefined for "any") is respected
+    const explicit = new Date();
+    expect(scopeArgs("Incident", "findMany", { where: { deletedAt: { not: null } } }, A)).toMatchObject({
+      where: { deletedAt: { not: null } },
+    });
+    expect(scopeArgs("Incident", "findMany", { where: { deletedAt: explicit } }, A)).toMatchObject({ where: { deletedAt: explicit } });
+    expect(scopeArgs("Incident", "findMany", { where: { deletedAt: undefined } }, A)?.where).toHaveProperty("deletedAt", undefined);
+    // other models and creates are untouched
+    expect(scopeArgs("Service", "findMany", {}, A)?.where).not.toHaveProperty("deletedAt");
+    expect(scopeArgs("Incident", "create", { data: { title: "t" } }, A)?.data).not.toHaveProperty("deletedAt");
+  });
+
   it("rejects a filter or write that names another workspace", () => {
     expect(() => scopeArgs("Incident", "findMany", { where: { workspaceId: "ws_b" } }, A)).toThrow(TenantScopeError);
     expect(() => scopeArgs("Incident", "create", { data: { workspaceId: "ws_b" } }, A)).toThrow(TenantScopeError);

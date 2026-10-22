@@ -10,6 +10,11 @@ import type { IncidentRow } from "@/features/incidents/list";
 import { IncidentList } from "./incident-list";
 
 const apiMock = vi.hoisted(() => vi.fn());
+const nav = vi.hoisted(() => ({ push: vi.fn(), pathname: "/app/acme/incidents" }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: nav.push }), usePathname: () => nav.pathname }));
+vi.mock("@/components/declare-incident", () => ({
+  DeclareIncidentButton: () => <button type="button">declare-cta</button>,
+}));
 vi.mock("@/lib/api-client", () => ({ api: apiMock }));
 vi.mock("next/link", () => ({
   default: ({ href, children, ...rest }: { href: string; children: ReactNode }) => (
@@ -19,7 +24,10 @@ vi.mock("next/link", () => ({
   ),
 }));
 
-beforeEach(() => apiMock.mockReset());
+beforeEach(() => {
+  apiMock.mockReset();
+  nav.push.mockReset();
+});
 afterEach(cleanup);
 
 const row = (n: number, over: Partial<IncidentRow> = {}): IncidentRow => ({
@@ -35,10 +43,7 @@ const row = (n: number, over: Partial<IncidentRow> = {}): IncidentRow => ({
   ...over,
 });
 
-function setup(
-  props: Partial<React.ComponentProps<typeof IncidentList>> = {},
-  skin: SkinKey = "professional",
-) {
+function setup(props: Partial<React.ComponentProps<typeof IncidentList>> = {}, skin: SkinKey = "professional") {
   return render(
     <CopyProvider skin={skin}>
       <ToastProvider>
@@ -62,7 +67,10 @@ describe("rows", () => {
     setup({ initial: [row(42, { severity: 5, status: "MITIGATING" })] });
     const r = screen.getByTestId("incident-42");
     expect(within(r).getByText("INC-42")).toBeInTheDocument();
-    expect(within(r).getByRole("link", { name: "Incident title 42" })).toHaveAttribute("href", "/app/acme/incidents/42");
+    expect(within(r).getByRole("link", { name: "Incident title 42" })).toHaveAttribute(
+      "href",
+      "/app/acme/incidents/42",
+    );
     expect(within(r).getByText(pro.severity[5])).toBeInTheDocument();
     expect(within(r).getByText(pro.status.MITIGATING)).toBeInTheDocument();
     cleanup();
@@ -92,7 +100,18 @@ describe("rows", () => {
   });
 
   it("shows a dash with no services, one chip and no +N for one or two", () => {
-    setup({ initial: [row(1), row(2, { services: [{ id: "s", name: "API" }] }), row(3, { services: [{ id: "a", name: "A" }, { id: "b", name: "B" }] })] });
+    setup({
+      initial: [
+        row(1),
+        row(2, { services: [{ id: "s", name: "API" }] }),
+        row(3, {
+          services: [
+            { id: "a", name: "A" },
+            { id: "b", name: "B" },
+          ],
+        }),
+      ],
+    });
     expect(within(screen.getByTestId("incident-1")).getByText("—")).toBeInTheDocument();
     expect(within(screen.getByTestId("incident-2")).queryByText(/^\+/)).toBeNull();
     expect(within(screen.getByTestId("incident-3")).queryByText(/^\+/)).toBeNull();
@@ -108,7 +127,9 @@ describe("rows", () => {
     });
     expect(within(screen.getByTestId("incident-1")).getByText("Ada Lovelace")).toHaveClass("sr-only");
     expect(within(screen.getByTestId("incident-2")).getByText("nameless@x.test")).toHaveClass("sr-only");
-    expect(within(screen.getByTestId("incident-3")).getByText(getCopy("professional").incidentList.unassigned)).toBeInTheDocument();
+    expect(
+      within(screen.getByTestId("incident-3")).getByText(getCopy("professional").incidentList.unassigned),
+    ).toBeInTheDocument();
   });
 
   it("shows relative start time with the exact time as a tooltip, and a duration", () => {
@@ -144,14 +165,20 @@ describe("rows", () => {
 });
 
 describe("empty states", () => {
-  it("says there are no incidents when nothing is filtered", () => {
+  it("says there are no incidents and offers to declare one", () => {
     setup({ initial: [] });
     expect(screen.getByText(getCopy("professional").empty.incidents[0])).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "declare-cta" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: getCopy("professional").incidentList.clearFilters })).toBeNull();
   });
 
-  it("says nothing matches when filters are active", () => {
+  it("says nothing matches when filters are active, with a way to clear them (and no declare prompt)", () => {
     setup({ initial: [], hasFilters: true });
-    expect(screen.getByText(getCopy("professional").incidentList.noMatches)).toBeInTheDocument();
+    const t = getCopy("professional");
+    expect(screen.getByText(t.incidentList.noMatches)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "declare-cta" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: t.incidentList.clearFilters }));
+    expect(nav.push).toHaveBeenCalledWith("/app/acme/incidents");
   });
 
   it("uses the haunted voice in the haunted skin", () => {
@@ -179,8 +206,12 @@ describe("load more", () => {
 
     const url = new URL(apiMock.mock.calls[0][0], "http://x");
     expect(url.pathname).toBe("/api/w/acme/incidents");
-    expect(Object.fromEntries(url.searchParams)).toEqual({ status: "RESOLVED", q: "slow", after: "id1" });
-    expect(screen.getAllByTestId(/^incident-/).map((n) => n.dataset.testid)).toEqual(["incident-2", "incident-1", "incident-0"]);
+    expect(Object.fromEntries(url.searchParams)).toEqual({ status: "RESOLVED", q: "slow", cursor: "id1" });
+    expect(screen.getAllByTestId(/^incident-/).map((n) => n.dataset.testid)).toEqual([
+      "incident-2",
+      "incident-1",
+      "incident-0",
+    ]);
     expect(screen.queryByRole("button", { name: t.incidentList.loadMore })).toBeNull(); // no further page
   });
 
@@ -192,7 +223,7 @@ describe("load more", () => {
     for (let i = 0; i < 2; i++) {
       await act(async () => fireEvent.click(screen.getByRole("button", { name: t.incidentList.loadMore })));
     }
-    expect(new URL(apiMock.mock.calls[1][0], "http://x").searchParams.get("after")).toBe("id0");
+    expect(new URL(apiMock.mock.calls[1][0], "http://x").searchParams.get("cursor")).toBe("id0");
     expect(screen.getAllByTestId(/^incident-/)).toHaveLength(4);
   });
 
@@ -212,5 +243,170 @@ describe("load more", () => {
     await act(async () => fireEvent.click(screen.getByRole("button", { name: t.incidentList.loadMore })));
     expect(screen.getByRole("button", { name: t.incidentList.loadMore })).toBeDisabled();
     await act(async () => finish({ ok: true, data: { items: [], nextCursor: null } }));
+  });
+});
+
+describe("row interactions", () => {
+  const t = getCopy("professional");
+
+  it("clicking anywhere on a row opens the incident", () => {
+    setup({ initial: [row(7)] });
+    fireEvent.click(within(screen.getByTestId("incident-7")).getByText(/^INC-7$/));
+    expect(nav.push).toHaveBeenCalledWith("/app/acme/incidents/7");
+  });
+
+  it("is reachable and operable by keyboard: rows are focusable and Enter or Space opens them", () => {
+    setup({ initial: [row(7)] });
+    const r = screen.getByTestId("incident-7");
+    expect(r).toHaveAttribute("tabindex", "0");
+    fireEvent.keyDown(r, { key: "Enter" });
+    fireEvent.keyDown(r, { key: " " });
+    expect(nav.push).toHaveBeenCalledTimes(2);
+    fireEvent.keyDown(r, { key: "a" });
+    expect(nav.push).toHaveBeenCalledTimes(2);
+  });
+
+  it("Enter on the title link or the menu button does not also trigger the row", () => {
+    setup({ initial: [row(7)] });
+    const r = screen.getByTestId("incident-7");
+    fireEvent.keyDown(within(r).getByRole("link"), { key: "Enter" });
+    fireEvent.keyDown(within(r).getByRole("button", { name: t.incidentList.rowActionsFor("INC-7") }), { key: "Enter" });
+    expect(nav.push).not.toHaveBeenCalled();
+  });
+
+  it("clicking the link, the menu button, or inside the menu doesn't navigate the row", () => {
+    setup({ initial: [row(7)] });
+    const r = screen.getByTestId("incident-7");
+    fireEvent.click(within(r).getByRole("link"));
+    fireEvent.click(within(r).getByRole("button", { name: t.incidentList.rowActionsFor("INC-7") }));
+    fireEvent.click(within(r).getByRole("menu"));
+    expect(nav.push).not.toHaveBeenCalled();
+  });
+});
+
+describe("quick actions menu", () => {
+  const t = getCopy("professional");
+  const openMenu = (n = 7) => {
+    const r = screen.getByTestId(`incident-${n}`);
+    fireEvent.click(within(r).getByRole("button", { name: t.incidentList.rowActionsFor(`INC-${n}`) }));
+    return within(within(r).getByRole("menu"));
+  };
+
+  it("opens and closes, exposes its state, and lists every status plus copy link", () => {
+    setup({ initial: [row(7, { status: "IDENTIFIED" })] });
+    const trigger = screen.getByRole("button", { name: t.incidentList.rowActionsFor("INC-7") });
+    expect(trigger).toHaveAttribute("aria-haspopup", "menu");
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByRole("menu")).toBeNull();
+
+    const menu = openMenu();
+    expect(trigger).toHaveAttribute("aria-expanded", "true");
+    for (const s of ["INVESTIGATING", "IDENTIFIED", "MITIGATING", "RESOLVED"] as const) {
+      expect(menu.getByRole("menuitemradio", { name: t.status[s] })).toBeInTheDocument();
+    }
+    expect(menu.getByRole("menuitemradio", { name: t.status.IDENTIFIED })).toBeChecked();
+    expect(menu.getByRole("menuitemradio", { name: t.status.IDENTIFIED })).toBeDisabled(); // already its status
+    expect(menu.getByRole("menuitem", { name: t.incidentList.copyLink })).toBeInTheDocument();
+
+    fireEvent.keyDown(screen.getByRole("menu"), { key: "Escape" });
+    expect(screen.queryByRole("menu")).toBeNull();
+    expect(trigger).toHaveFocus();
+  });
+
+  it("closes when focus leaves it", () => {
+    setup({ initial: [row(7)] });
+    openMenu();
+    fireEvent.blur(screen.getByRole("menu"), { relatedTarget: document.body });
+    expect(screen.queryByRole("menu")).toBeNull();
+  });
+
+  it("moves between items with the arrow keys, wrapping around", () => {
+    setup({ initial: [row(7)] });
+    const menu = openMenu();
+    const items = [
+      menu.getByRole("menuitemradio", { name: t.status.IDENTIFIED }),
+      menu.getByRole("menuitemradio", { name: t.status.MITIGATING }),
+    ];
+    items[0].focus();
+    fireEvent.keyDown(items[0], { key: "ArrowDown" });
+    expect(items[1]).toHaveFocus();
+    fireEvent.keyDown(items[1], { key: "ArrowUp" });
+    expect(items[0]).toHaveFocus();
+  });
+
+  it("changes status optimistically and confirms with a toast", async () => {
+    let finish: (v: unknown) => void = () => {};
+    apiMock.mockReturnValue(new Promise((resolve) => (finish = resolve)));
+    setup({ initial: [row(7, { status: "INVESTIGATING" })] });
+    const menu = openMenu();
+    await act(async () => fireEvent.click(menu.getByRole("menuitemradio", { name: t.status.RESOLVED })));
+
+    // shown immediately, before the server answers
+    expect(within(screen.getByTestId("incident-7")).getAllByText(t.status.RESOLVED).length).toBeGreaterThan(0);
+    expect(apiMock).toHaveBeenCalledWith("/api/w/acme/incidents/7/status", {
+      method: "POST",
+      body: { status: "RESOLVED" },
+    });
+    expect(screen.queryByRole("menu")).toBeNull();
+
+    await act(async () => finish({ ok: true, data: {} }));
+    expect(await screen.findByText(t.incidentList.statusChanged(t.status.RESOLVED))).toBeInTheDocument();
+  });
+
+  it("freezes the duration when resolved from the menu, and unfreezes on reopening", async () => {
+    apiMock.mockResolvedValue({ ok: true, data: {} });
+    setup({ initial: [row(7, { status: "INVESTIGATING" })] });
+    {
+      const menu = openMenu();
+      await act(async () => fireEvent.click(menu.getByRole("menuitemradio", { name: t.status.RESOLVED })));
+    }
+    expect(screen.getByTestId("incident-7").textContent).not.toContain(t.incidentList.ongoing);
+    {
+      const menu = openMenu();
+      await act(async () => fireEvent.click(menu.getByRole("menuitemradio", { name: t.status.INVESTIGATING })));
+    }
+    expect(apiMock).toHaveBeenLastCalledWith("/api/w/acme/incidents/7/status", {
+      method: "POST",
+      body: { status: "INVESTIGATING" },
+    });
+    expect(screen.getByTestId("incident-7").textContent).toContain(t.incidentList.ongoing);
+  });
+
+  it("rolls back and shows an error when the server refuses", async () => {
+    apiMock.mockResolvedValue({ ok: false, status: 404, code: "not_found", message: "" });
+    setup({ initial: [row(7, { status: "INVESTIGATING" })] });
+    {
+      const menu = openMenu();
+      await act(async () => fireEvent.click(menu.getByRole("menuitemradio", { name: t.status.RESOLVED })));
+    }
+    const r = within(screen.getByTestId("incident-7"));
+    expect(r.getAllByText(t.status.INVESTIGATING).length).toBeGreaterThan(0);
+    expect(r.queryByText(t.status.RESOLVED)).toBeNull();
+    expect(await screen.findByRole("alert")).toHaveTextContent(t.errors.notFound);
+  });
+
+  it("copies an absolute link to the incident", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
+    setup({ initial: [row(7)] });
+    {
+      const menu = openMenu();
+      await act(async () => fireEvent.click(menu.getByRole("menuitem", { name: t.incidentList.copyLink })));
+    }
+    expect(writeText).toHaveBeenCalledWith(`${window.location.origin}/app/acme/incidents/7`);
+    expect(await screen.findByText(t.incidentList.linkCopied)).toBeInTheDocument();
+  });
+
+  it("says so when copying isn't possible", async () => {
+    Object.defineProperty(navigator, "clipboard", {
+      value: { writeText: vi.fn().mockRejectedValue(new Error("denied")) },
+      configurable: true,
+    });
+    setup({ initial: [row(7)] });
+    {
+      const menu = openMenu();
+      await act(async () => fireEvent.click(menu.getByRole("menuitem", { name: t.incidentList.copyLink })));
+    }
+    expect(await screen.findByRole("alert")).toHaveTextContent(t.incidentList.copyFailed);
   });
 });

@@ -25,6 +25,20 @@ const UNIQUE_OPS = new Set(["findUnique", "findUniqueOrThrow", "update", "delete
 const CREATE_OPS = new Set(["create", "createMany", "createManyAndReturn"]);
 const UPDATE_OPS = new Set(["update", "updateMany", "updateManyAndReturn"]);
 
+/**
+ * Models with a soft-delete column. Reads and updates through the scoped client only see live rows
+ * (`deletedAt: null`). A caller that really needs deleted rows passes `deletedAt` explicitly
+ * (`deletedAt: undefined` means "any").
+ */
+const SOFT_DELETE: Record<string, string> = { Incident: "deletedAt" };
+
+function liveOnly(where: unknown, model: string): unknown {
+  const column = SOFT_DELETE[model];
+  if (!column) return where;
+  const w = (where ?? {}) as Record<string, unknown>;
+  return column in w ? w : { ...w, [column]: null };
+}
+
 /** The column that identifies the tenant on a model. */
 const scopeKey = (model: string) => (model === ROOT_MODEL ? "id" : "workspaceId");
 
@@ -64,9 +78,9 @@ export function scopeArgs(model: string, operation: string, args: Args, workspac
   const a: Record<string, unknown> = { ...(args ?? {}) };
 
   if (WHERE_OPS.has(operation) || UNIQUE_OPS.has(operation)) {
-    a.where = scopedWhere(a.where, key, workspaceId);
+    a.where = liveOnly(scopedWhere(a.where, key, workspaceId), model);
   } else if (operation === "upsert") {
-    a.where = scopedWhere(a.where, key, workspaceId);
+    a.where = liveOnly(scopedWhere(a.where, key, workspaceId), model);
     a.create = scopedData(a.create, key, workspaceId, true);
     a.update = scopedData(a.update, key, workspaceId, false);
   } else if (CREATE_OPS.has(operation)) {

@@ -17,7 +17,8 @@
     "db:deploy": "prisma migrate deploy",
     "db:seed": "prisma db seed",
     "check": "pnpm typecheck && pnpm lint && pnpm test",
-    "test:all": "pnpm check && pnpm test:db && pnpm e2e"
+    "test:all": "pnpm check && pnpm test:db && pnpm e2e",
+    "seed": "prisma db seed"
   },
   "dependencies": {
     "@prisma/adapter-pg": "7.10.1",
@@ -30,6 +31,7 @@
     "pg": "^8.23.1",
     "react": "19.3.0",
     "react-dom": "19.3.0",
+    "react-markdown": "^10.1.0",
     "tailwind-merge": "^3.7.0",
     "zod": "^4.6.7"
   },

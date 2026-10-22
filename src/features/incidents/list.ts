@@ -1,6 +1,6 @@
 import type { IncidentStatus, Prisma } from "@/generated/prisma/client";
 import type { ScopedDb } from "@/server/db/tenant";
-import { PAGE_SIZE, numberFromQuery, type ListParams, type SortKey } from "./list-params";
+import { numberFromQuery, type ListParams, type SortKey } from "./list-params";
 
 export interface IncidentRow {
   id: string;
@@ -53,14 +53,14 @@ export function buildWhere(p: ListParams): Prisma.IncidentWhereInput {
 export async function listIncidents(
   db: ScopedDb,
   params: ListParams,
-  pageSize = PAGE_SIZE,
+  pageSize = params.limit,
 ): Promise<{ items: IncidentRow[]; nextCursor: string | null }> {
   const field = ORDER_FIELD[params.sort];
   const rows = await db.incident.findMany({
     where: buildWhere(params),
     orderBy: [{ [field]: params.dir }, { id: params.dir }],
     take: pageSize + 1,
-    ...(params.after ? { cursor: { id: params.after }, skip: 1 } : {}),
+    ...(params.cursor ? { cursor: { id: params.cursor }, skip: 1 } : {}),
     select: {
       id: true,
       number: true,

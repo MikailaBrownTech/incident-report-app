@@ -2,6 +2,7 @@ import type { Role } from "@/generated/prisma/client";
 import { writeAudit } from "@/server/audit";
 import type { WorkspaceContext } from "@/server/auth/context";
 import { canAssignRole, canRemoveMember } from "@/server/auth/permissions";
+import { lockWorkspace } from "@/server/db/lock";
 import { INVITE_TTL_MS, newInviteToken } from "@/server/invites/token";
 
 export type MemberError = "forbidden" | "not_found" | "already_member" | "last_owner" | "has_rituals";
@@ -95,50 +96,46 @@ export async function resendInvite(
 }
 
 export async function changeMemberRole(ctx: Ctx, userId: string, next: Role): Promise<Result> {
-  return ctx.db.$transaction(
-    async (tx): Promise<Result> => {
-      const target = await tx.membership.findFirst({ where: { userId } });
-      if (!target) return { ok: false, error: "not_found" };
-      if (!canAssignRole(ctx.membership.role, target.role, next)) return { ok: false, error: "forbidden" };
-      if (target.role === next) return { ok: true };
-      if (target.role === "OWNER" && (await ownerCount(tx)) <= 1) return { ok: false, error: "last_owner" };
-      await tx.membership.update({ where: { id: target.id }, data: { role: next } });
-      await writeAudit(tx, ctx.workspace.id, {
-        actorId: ctx.user.id,
-        action: "member.role_changed",
-        targetType: "member",
-        targetId: userId,
-        metadata: { from: target.role, to: next },
-      });
-      return { ok: true };
-    },
-    // Serializable so two owners can't demote each other at the same instant.
-    { isolationLevel: "Serializable" },
-  );
+  return ctx.db.$transaction(async (tx): Promise<Result> => {
+    // Serialise owner changes per workspace so "never zero owners" holds even when two requests race.
+    await lockWorkspace(tx, ctx.workspace.id);
+    const target = await tx.membership.findFirst({ where: { userId } });
+    if (!target) return { ok: false, error: "not_found" };
+    if (!canAssignRole(ctx.membership.role, target.role, next)) return { ok: false, error: "forbidden" };
+    if (target.role === next) return { ok: true };
+    if (target.role === "OWNER" && (await ownerCount(tx)) <= 1) return { ok: false, error: "last_owner" };
+    await tx.membership.update({ where: { id: target.id }, data: { role: next } });
+    await writeAudit(tx, ctx.workspace.id, {
+      actorId: ctx.user.id,
+      action: "member.role_changed",
+      targetType: "member",
+      targetId: userId,
+      metadata: { from: target.role, to: next },
+    });
+    return { ok: true };
+  });
 }
 
 /** Removes a member, or lets someone leave (userId === the caller). */
 export async function removeMember(ctx: Ctx, userId: string): Promise<Result<{ left: boolean }>> {
-  return ctx.db.$transaction(
-    async (tx): Promise<Result<{ left: boolean }>> => {
-      const target = await tx.membership.findFirst({ where: { userId } });
-      if (!target) return { ok: false, error: "not_found" };
-      const left = userId === ctx.user.id;
-      if (!left && !canRemoveMember(ctx.membership.role, target.role)) return { ok: false, error: "forbidden" };
-      if (target.role === "OWNER" && (await ownerCount(tx)) <= 1) return { ok: false, error: "last_owner" };
-      if (await tx.actionItem.count({ where: { ownerId: userId, status: { not: "DONE" } } })) {
-        return { ok: false, error: "has_rituals" };
-      }
-      await tx.membership.delete({ where: { id: target.id } });
-      await writeAudit(tx, ctx.workspace.id, {
-        actorId: ctx.user.id,
-        action: "member.removed",
-        targetType: "member",
-        targetId: userId,
-        metadata: { left, role: target.role },
-      });
-      return { ok: true, left };
-    },
-    { isolationLevel: "Serializable" },
-  );
+  return ctx.db.$transaction(async (tx): Promise<Result<{ left: boolean }>> => {
+    await lockWorkspace(tx, ctx.workspace.id);
+    const target = await tx.membership.findFirst({ where: { userId } });
+    if (!target) return { ok: false, error: "not_found" };
+    const left = userId === ctx.user.id;
+    if (!left && !canRemoveMember(ctx.membership.role, target.role)) return { ok: false, error: "forbidden" };
+    if (target.role === "OWNER" && (await ownerCount(tx)) <= 1) return { ok: false, error: "last_owner" };
+    if (await tx.actionItem.count({ where: { ownerId: userId, status: { not: "DONE" } } })) {
+      return { ok: false, error: "has_rituals" };
+    }
+    await tx.membership.delete({ where: { id: target.id } });
+    await writeAudit(tx, ctx.workspace.id, {
+      actorId: ctx.user.id,
+      action: "member.removed",
+      targetType: "member",
+      targetId: userId,
+      metadata: { left, role: target.role },
+    });
+    return { ok: true, left };
+  });
 }

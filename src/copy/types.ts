@@ -308,6 +308,12 @@ export interface CopyDictionary {
     noMatches: string;
     noServicesYet: string;
     ongoing: string;
+    rowActionsFor: (label: string) => string;
+    changeStatus: string;
+    copyLink: string;
+    linkCopied: string;
+    copyFailed: string;
+    statusChanged: (status: string) => string;
   };
   incidentDetail: {
     assignCommanderTitle: string;
@@ -315,11 +321,34 @@ export interface CopyDictionary {
     commander: string;
     declaredBy: (name: string) => string;
     startedLabel: string;
+    resolvedLabel: string;
     durationLabel: string;
+    createdByLabel: string;
     summaryLabel: string;
     noSummary: string;
+    addSummary: string;
+    editSummary: string;
+    editTitle: string;
+    titleLabel: string;
+    markdownHint: string;
+    save: string;
     backToList: string;
     loadFailed: string;
+    propertiesHeading: string;
+    statusLabel: string;
+    severityLabel: string;
+    servicesLabel: string;
+    servicesNone: string;
+    rolesHeading: string;
+    unassigned: string;
+    reopen: string;
+    timelineHeading: string;
+    timelinePlaceholder: string;
+    deleteIncident: string;
+    deleteConfirmTitle: (label: string) => string;
+    deleteConfirmBody: string;
+    deleted: string;
+    saveFailed: string;
   };
   services: {
     heading: string;

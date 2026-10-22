@@ -183,6 +183,7 @@ model Incident {
   createdById  String
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
+  deletedAt    DateTime? // soft delete; scopedDb hides these rows everywhere
 
   workspace   Workspace            @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   revenantOf  Incident?            @relation("Revenant", fields: [revenantOfId], references: [id], onDelete: SetNull)
@@ -234,6 +235,9 @@ enum EventType {
   NOTE
   STATUS_CHANGED
   SEVERITY_CHANGED
+  TITLE_CHANGED
+  SUMMARY_CHANGED
+  INCIDENT_DELETED
   ROLE_ASSIGNED
   ROLE_UNASSIGNED
   SERVICES_CHANGED

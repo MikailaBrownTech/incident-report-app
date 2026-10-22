@@ -30,9 +30,19 @@ export function IncidentFilters({ params, services, severityLabels }: Props) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const [q, setQ] = useState(params.q);
+  // What's in the search box: what the user typed, or (null) whatever the URL says. When the URL changes for
+  // a reason other than our own debounced commit (back/forward, "clear filters"), the box follows it.
+  const [typed, setTyped] = useState<string | null>(null);
+  const [committed, setCommitted] = useState<string | null>(null);
+  const [seenQ, setSeenQ] = useState(params.q);
+  if (seenQ !== params.q) {
+    setSeenQ(params.q);
+    if (params.q !== committed) setTyped(null);
+  }
+  const q = typed ?? params.q;
 
-  function update(changes: Record<string, string | string[] | null>) {
+  /** Discrete changes (chips, sort, dates) add a history entry so back/forward step through them. */
+  function update(changes: Record<string, string | string[] | null>, mode: "push" | "replace" = "push") {
     const next = new URLSearchParams(searchParams.toString());
     for (const [key, value] of Object.entries(changes)) {
       next.delete(key);
@@ -41,18 +51,21 @@ export function IncidentFilters({ params, services, severityLabels }: Props) {
         if (value.length > 0) next.set(key, value.join(","));
       } else if (value !== "") next.set(key, value);
     }
-    next.delete("after"); // any change starts again from the first page
+    next.delete("cursor"); // any change starts again from the first page
     const qs = next.toString();
-    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    router[mode](qs ? `${pathname}?${qs}` : pathname, { scroll: false });
   }
 
-  // Debounced search: wait for a pause in typing before touching the URL.
+  // Debounced search: wait for a pause in typing, then replace (typing shouldn't spam the history).
   useEffect(() => {
-    if (q.trim() === params.q) return;
-    const timer = setTimeout(() => update({ q: q.trim() || null }), 300);
+    if (typed === null || typed.trim() === params.q) return;
+    const timer = setTimeout(() => {
+      setCommitted(typed.trim());
+      update({ q: typed.trim() || null }, "replace");
+    }, 300);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [q]);
+  }, [typed]);
 
   const toggle = <T extends string | number>(list: T[], value: T): string[] =>
     (list.includes(value) ? list.filter((v) => v !== value) : [...list, value]).map(String);
@@ -78,7 +91,7 @@ export function IncidentFilters({ params, services, severityLabels }: Props) {
             type="search"
             value={q}
             placeholder={t.incidentList.searchPlaceholder}
-            onChange={(e) => setQ(e.target.value)}
+            onChange={(e) => setTyped(e.target.value)}
             className={inputClass}
           />
         </div>
@@ -205,8 +218,9 @@ export function IncidentFilters({ params, services, severityLabels }: Props) {
             type="button"
             className="text-sm text-accent underline underline-offset-2"
             onClick={() => {
-              setQ("");
-              router.replace(pathname, { scroll: false });
+              setTyped(null);
+              setCommitted(null);
+              router.push(pathname, { scroll: false });
             }}
           >
             {t.incidentList.clearFilters}

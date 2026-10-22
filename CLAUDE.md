@@ -18,7 +18,7 @@ pnpm e2e            # Playwright against a production build on :3200 + throwaway
 pnpm test:all       # check + test:db + e2e (milestone gate)
 pnpm db:migrate     # prisma migrate dev (uses DIRECT_URL); regenerates the client
 pnpm db:deploy      # prisma migrate deploy
-pnpm db:seed        # demo data (~15 incidents, 6 postmortems, 20 rituals) - arrives in M7
+pnpm seed            # demo workspace (8 services, 15 incidents over 90 days); safe to re-run. Also: pnpm db:seed
 # Database: Neon (see .env.example); no local Docker needed
 ```
 
@@ -75,3 +75,14 @@ pnpm db:seed        # demo data (~15 incidents, 6 postmortems, 20 rituals) - arr
 - Component tests (`*.test.tsx`, jsdom) cover the client UI without a browser: add `// @vitest-environment jsdom`, mock `next/navigation` and `@/lib/api-client`, and call `polyfillDialog()` from `src/test/dialog-polyfill.ts` for `<dialog>`.
 - Formatting: `.prettierrc.json` sets width 120. Run prettier on the files you changed, never on whole directories (it reformats unrelated files).
 - Tests that read repo files must tolerate CRLF (a Windows checkout converts line endings).
+
+## Incident detail, soft delete and seed (M2, part 2)
+- Every incident mutation lives in `src/features/incidents/update.ts` and runs in one transaction: it writes an `Event` row (actor + `{ from, to }` payload; no-ops write nothing) and, for status, severity, role and delete changes, an audit row. Title, summary and service edits are events only. To roll back, `throw` inside the transaction.
+- Status rules: RESOLVED stamps `resolvedAt`; leaving RESOLVED clears it; moving between open statuses leaves it alone; the same status is a no-op. `resolvedAt` can't be set through PATCH.
+- Roles: `IncidentAssignment` has one holder per (incident, role). `PUT .../roles` takes `{ COMMANDER?, SCRIBE?, COMMS? }` (id assigns, `null` unassigns); non-members are rejected, and the composite FK to `Membership` backs that up in the database.
+- Soft delete: `Incident.deletedAt`. `scopedDb` adds `deletedAt: null` to every Incident read and update (pass `deletedAt` explicitly to see deleted rows). It cannot see through NESTED relation filters, so any `_count`, `groupBy` or relation `where` that reaches incidents from another model (see `listServices`, `deleteService`) must add `incident: { deletedAt: null }` itself.
+- Never use `Serializable` isolation for invariants: on small tables Postgres aborts unrelated transactions with serialization failures (random 500s). Take a per-workspace row lock with `lockWorkspace` (`src/server/db/lock.ts`) instead; see `changeMemberRole` and `removeMember`.
+- User-written markdown goes through `src/components/markdown.tsx` only (HTML dropped, links limited to http(s)/mailto/relative, images never loaded, headings demoted).
+- Incidents list contract: `GET /api/w/{slug}/incidents?status&severity&service&q&from&to&open&sort&dir&limit&cursor` is validated strictly with Zod (400 with field errors); the page uses the lenient `parseListParams` so a stale URL still renders. 25 per page (`limit` 1-100), keyset cursor ordered by the sort column then `id`. Chips, sort and dates `push` history entries; typing `replace`s.
+- Detail UI saves optimistically per field and reverts only that field on failure (`save()` in `incident-detail.tsx`), so overlapping edits don't undo each other.
+- Seed: `pnpm seed` (alias of `db:seed`) creates the `demo` workspace via `src/server/seed/demo.ts`. Idempotent: an incident whose number already exists is skipped entirely, so edits and deletions survive re-runs. `SEED_OWNER_EMAIL=you@example.com` (an account that already exists) adds you as owner. Refuses `NODE_ENV=production` unless `SEED_ALLOW_PRODUCTION=1`.

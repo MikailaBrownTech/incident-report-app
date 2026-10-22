@@ -8,9 +8,9 @@ import { parseListParams } from "@/features/incidents/list-params";
 import { IncidentFilters } from "./incident-filters";
 
 const PATH = "/app/acme/incidents";
-const nav = vi.hoisted(() => ({ replace: vi.fn(), query: "" }));
+const nav = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn(), query: "" }));
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ replace: nav.replace }),
+  useRouter: () => ({ push: nav.push, replace: nav.replace }),
   usePathname: () => "/app/acme/incidents",
   useSearchParams: () => new URLSearchParams(nav.query),
 }));
@@ -22,6 +22,7 @@ const services = [
 ];
 
 beforeEach(() => {
+  nav.push.mockReset();
   nav.replace.mockReset();
   nav.query = "";
   vi.useFakeTimers();
@@ -46,10 +47,10 @@ function setup(query = "") {
   );
 }
 
-/** The URL the component navigated to, as pathname + decoded params. */
-function lastUrl() {
-  const call = nav.replace.mock.calls.at(-1);
-  expect(call, "router.replace was not called").toBeTruthy();
+/** The URL the component navigated to (push for discrete changes, replace for typing), as pathname + decoded params. */
+function lastUrl(kind: "push" | "replace" = "push") {
+  const call = nav[kind].mock.calls.at(-1);
+  expect(call, `router.${kind} was not called`).toBeTruthy();
   const [href, options] = call!;
   const url = new URL(href, "http://x");
   expect(options).toEqual({ scroll: false });
@@ -64,7 +65,8 @@ describe("search", () => {
     act(() => void vi.advanceTimersByTime(299));
     expect(nav.replace).not.toHaveBeenCalled();
     act(() => void vi.advanceTimersByTime(1));
-    expect(lastUrl()).toEqual({ path: PATH, params: { q: "check" } });
+    expect(lastUrl("replace")).toEqual({ path: PATH, params: { q: "check" } });
+    expect(nav.push).not.toHaveBeenCalled(); // typing never adds history entries
   });
 
   it("restarts the wait on every keystroke, so only the final text is searched", () => {
@@ -77,14 +79,14 @@ describe("search", () => {
     expect(nav.replace).not.toHaveBeenCalled();
     act(() => void vi.advanceTimersByTime(100));
     expect(nav.replace).toHaveBeenCalledTimes(1);
-    expect(lastUrl().params.q).toBe("chec");
+    expect(lastUrl("replace").params.q).toBe("chec");
   });
 
   it("trims, keeps other filters, and drops the pagination cursor", () => {
-    setup("status=RESOLVED&after=abc123&sort=severity");
+    setup("status=RESOLVED&cursor=abc123&sort=severity");
     fireEvent.change(screen.getByLabelText(t.incidentList.searchLabel), { target: { value: "  slow  " } });
     act(() => void vi.advanceTimersByTime(300));
-    expect(lastUrl().params).toEqual({ status: "RESOLVED", sort: "severity", q: "slow" });
+    expect(lastUrl("replace").params).toEqual({ status: "RESOLVED", sort: "severity", q: "slow" });
   });
 
   it("clearing the box removes q; unchanged text makes no navigation", () => {
@@ -96,7 +98,7 @@ describe("search", () => {
     expect(nav.replace).not.toHaveBeenCalled();
     fireEvent.change(box, { target: { value: "" } });
     act(() => void vi.advanceTimersByTime(300));
-    expect(lastUrl()).toEqual({ path: PATH, params: {} });
+    expect(lastUrl("replace")).toEqual({ path: PATH, params: {} });
   });
 });
 
@@ -210,12 +212,61 @@ describe("clear filters", () => {
     setup("q=slow&severity=5&sort=number");
     expect((screen.getByLabelText(t.incidentList.searchLabel) as HTMLInputElement).value).toBe("slow");
     fireEvent.click(screen.getByRole("button", { name: t.incidentList.clearFilters }));
-    expect(nav.replace).toHaveBeenCalledWith(PATH, { scroll: false });
-    expect((screen.getByLabelText(t.incidentList.searchLabel) as HTMLInputElement).value).toBe("");
+    expect(nav.push).toHaveBeenCalledWith(PATH, { scroll: false });
   });
 
   it("treats switching open-only off as a filter", () => {
     setup("open=0");
     expect(screen.getByRole("button", { name: t.incidentList.clearFilters })).toBeInTheDocument();
+  });
+});
+
+describe("browser history", () => {
+  it("chips, sorting, dates and open-only add history entries; typing replaces", () => {
+    setup();
+    fireEvent.click(screen.getByRole("button", { name: t.status.INVESTIGATING }));
+    fireEvent.change(screen.getByLabelText(t.incidentList.sortBy), { target: { value: "severity" } });
+    fireEvent.change(screen.getByLabelText(t.incidentList.dateFrom), { target: { value: "2026-01-02" } });
+    fireEvent.click(screen.getByLabelText(t.incidentList.openOnly));
+    expect(nav.push).toHaveBeenCalledTimes(4);
+    expect(nav.replace).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByLabelText(t.incidentList.searchLabel), { target: { value: "x" } });
+    act(() => void vi.advanceTimersByTime(300));
+    expect(nav.push).toHaveBeenCalledTimes(4);
+    expect(nav.replace).toHaveBeenCalledTimes(1);
+  });
+
+  it("the search box follows the URL when it changes underneath it (back/forward, clearing)", () => {
+    const { rerender } = setup("q=old");
+    const box = () => screen.getByLabelText(t.incidentList.searchLabel) as HTMLInputElement;
+    expect(box().value).toBe("old");
+
+    // the user goes Back to a URL with a different search
+    const render2 = (q: string) =>
+      rerender(
+        <CopyProvider skin="professional">
+          <IncidentFilters params={parseListParams({ q })} services={services} severityLabels={null} />
+        </CopyProvider>,
+      );
+    render2("");
+    expect(box().value).toBe("");
+    render2("slow");
+    expect(box().value).toBe("slow");
+  });
+
+  it("typing that happens while its own URL update is in flight is not lost", () => {
+    const { rerender } = setup();
+    const box = () => screen.getByLabelText(t.incidentList.searchLabel) as HTMLInputElement;
+    fireEvent.change(box(), { target: { value: "ab" } });
+    act(() => void vi.advanceTimersByTime(300)); // commits q=ab via replace
+    fireEvent.change(box(), { target: { value: "abc" } }); // user keeps typing before the page re-renders
+    rerender(
+      <CopyProvider skin="professional">
+        <IncidentFilters params={parseListParams({ q: "ab" })} services={services} severityLabels={null} />
+      </CopyProvider>,
+    ); // the URL caught up with "ab"
+    expect(box().value).toBe("abc");
+    act(() => void vi.advanceTimersByTime(300));
+    expect(lastUrl("replace").params.q).toBe("abc");
   });
 });

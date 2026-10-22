@@ -70,7 +70,7 @@ export async function renameService(ctx: Pick<WorkspaceContext, "db">, id: strin
 export async function deleteService(ctx: Pick<WorkspaceContext, "db">, id: string) {
   const service = await ctx.db.service.findFirst({
     where: { id },
-    select: { _count: { select: { incidents: true } } },
+    select: { _count: { select: { incidents: { where: { incident: { deletedAt: null } } } } } },
   });
   if (!service) return { ok: false, error: "not_found" } as const;
   await ctx.db.service.delete({ where: { id } });
@@ -81,11 +81,12 @@ export async function listServices(db: ScopedDb): Promise<ServiceView[]> {
   const [services, open] = await Promise.all([
     db.service.findMany({
       orderBy: { name: "asc" },
-      include: { _count: { select: { incidents: true } } },
+      // Nested relation filters bypass the scoped client's soft-delete rule, so exclude deleted incidents here.
+      include: { _count: { select: { incidents: { where: { incident: { deletedAt: null } } } } } },
     }),
     db.incidentService.groupBy({
       by: ["serviceId"],
-      where: { incident: { status: { not: "RESOLVED" } } },
+      where: { incident: { status: { not: "RESOLVED" }, deletedAt: null } },
       _count: { _all: true },
     }),
   ]);
