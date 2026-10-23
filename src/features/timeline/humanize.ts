@@ -28,7 +28,29 @@ const rolePayload = z.object({ role, from: text.nullish(), to: text.nullish() })
 const servicesPayload = z.object({ added: z.array(text).optional(), removed: z.array(text).optional() });
 const titlePayload = z.object({ from: text, to: text });
 
+const revenantPayload = z.object({
+  role: z.enum(["revenant", "root"]).optional(),
+  rootNumber: z.number().int().nullish(),
+  revenantNumber: z.number().int().nullish(),
+});
+
 const readable = (type: string) => type.toLowerCase().replace(/_/g, " ");
+
+function revenantSentence(event: HumanizableEvent, ctx: HumanizeContext, unlinked: boolean): string {
+  const e = ctx.t.timeline.events;
+  const p = revenantPayload.safeParse(event.payload);
+  const label = (n: number | null | undefined) => (typeof n === "number" ? ctx.t.incident.number(n) : null);
+  if (p.success) {
+    if (p.data.role === "root") {
+      const l = label(p.data.revenantNumber);
+      if (l) return unlinked ? e.revenantUnlinkedRoot(l) : e.revenantRecorded(l);
+    } else {
+      const l = label(p.data.rootNumber);
+      if (l) return unlinked ? e.revenantUnlinkedFrom(l) : e.revenantLinkedTo(l);
+    }
+  }
+  return unlinked ? e.revenantUnlinked : e.revenantLinked;
+}
 
 /**
  * One readable sentence for a system event, in the active skin's words. Anything unexpected (a payload
@@ -87,9 +109,11 @@ export function humanizeEvent(event: HumanizableEvent, ctx: HumanizeContext): st
       case "INCIDENT_DELETED":
         return e.incidentDeleted;
       case "REVENANT_LINKED":
-        return e.revenantLinked;
+        return revenantSentence(event, ctx, false);
       case "POSTMORTEM_PUBLISHED":
         return e.postmortemPublished;
+      case "REVENANT_UNLINKED":
+        return revenantSentence(event, ctx, true);
       case "POSTMORTEM_STARTED":
         return e.postmortemStarted(nameOf(event.actorId));
       case "POSTMORTEM_UNPUBLISHED":

@@ -244,6 +244,23 @@ export async function deleteIncident(ctx: Ctx, number: number, now: Date = new D
   return run(ctx, async (tx) => {
     const incident = await liveIncident(tx, number);
     await tx.incident.update({ where: { id: incident.id }, data: { deletedAt: now } });
+    // A deleted root leaves its chain headless: the earliest revenant still standing becomes the root and the rest follow
+    // it. (A deleted revenant just drops out of its chain, so nothing else changes.)
+    const remaining = await tx.incident.findMany({
+      where: { revenantOfId: incident.id },
+      orderBy: [{ startedAt: "asc" }, { id: "asc" }],
+      select: { id: true },
+    });
+    if (remaining.length > 0) {
+      const [newRoot, ...others] = remaining;
+      await tx.incident.update({ where: { id: newRoot.id }, data: { revenantOfId: null } });
+      if (others.length > 0) {
+        await tx.incident.updateMany({
+          where: { id: { in: others.map((o) => o.id) } },
+          data: { revenantOfId: newRoot.id },
+        });
+      }
+    }
     await event(tx, ctx, incident.id, "INCIDENT_DELETED", { number, title: incident.title });
     await writeAudit(tx, ctx.workspace.id, {
       actorId: ctx.user.id,

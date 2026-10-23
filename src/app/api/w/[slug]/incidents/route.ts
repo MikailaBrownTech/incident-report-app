@@ -15,6 +15,10 @@ const FAILURES: Record<DeclareError, ApiError> = {
   started_in_future: new ApiError(400, "validation_error", "The start time can't be in the future.", {
     startedAt: ["in_future"],
   }),
+  revenant_not_found: new ApiError(404, "not_found", "The incident to link to doesn't exist."),
+  revenant_not_earlier: new ApiError(400, "validation_error", "Link the later incident to the earlier one.", {
+    revenantOfNumber: ["target_not_earlier"],
+  }),
 };
 
 /** GET /api/w/{slug}/incidents: one filtered, sorted page. Query: q, status, severity, service, from, to, open, sort, dir, limit (1-100, default 25), cursor. */

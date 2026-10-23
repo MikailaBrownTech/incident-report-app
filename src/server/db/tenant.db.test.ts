@@ -33,6 +33,7 @@ const spec = (t: Tenant) => ({
   retroRule: { unique: { id: t.retroRule.id }, filter: { id: t.retroRule.id }, data: { minSeverity: 1 } },
   postmortemTemplate: { unique: { id: t.template.id }, filter: { id: t.template.id }, data: { name: "hijacked" } },
   auditLog: { unique: { id: t.audit.id }, filter: { id: t.audit.id }, data: { action: "hijacked" } },
+  revenantDismissal: { unique: { id: t.dismissal.id }, filter: { id: t.dismissal.id }, data: { dismissedById: "hijacked" } },
 });
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -41,7 +42,7 @@ const delegate = (db: any, name: string) => db[name];
 const NAMES = [
   "membership", "invite", "service", "incident", "incidentService", "incidentAssignment",
   "event", "integration", "postmortem", "postmortemSection", "actionItem", "retroRule",
-  "postmortemTemplate", "auditLog",
+  "postmortemTemplate", "auditLog", "revenantDismissal",
 ] as const;
 
 describe("coverage", () => {

@@ -4,7 +4,7 @@ import { parseArgs } from "node:util";
 import { prisma } from "../src/server/db/client";
 import { SeedMineError, seedMine, type MinePlan } from "../src/server/seed/mine";
 
-const USAGE = "Usage: pnpm seed:mine --email <you@example.com> [--workspace <slug>] [--reset] [--yes]";
+const USAGE = "Usage: pnpm seed:mine --email mikaila.brown2023@gmail.com [--workspace <slug>] [--reset] [--yes]";
 
 /** Host and database only; never the credentials. */
 function databaseTarget(): string {

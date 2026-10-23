@@ -80,13 +80,19 @@ export async function createTenant(label: string) {
   const template = await prisma.postmortemTemplate.create({
     data: { workspaceId: w, name: `${label} template`, isSystem: true, sections: [{ key: "CAUSE", position: 0 }] },
   });
+  const sibling = await prisma.incident.create({
+    data: { workspaceId: w, number: 2, title: `${label} outage again`, severity: 3, createdById: owner.id },
+  });
+  const dismissal = await prisma.revenantDismissal.create({
+    data: { workspaceId: w, incidentId: sibling.id, candidateId: incident.id, dismissedById: owner.id },
+  });
   const audit = await prisma.auditLog.create({
     data: { workspaceId: w, actorId: owner.id, action: "workspace.created", targetType: "workspace", targetId: w },
   });
 
   return {
     owner, workspace, membership, retroRule, service, incident, assignment,
-    event, postmortem, section, ritual, invite, integration, template, audit,
+    event, postmortem, section, ritual, invite, integration, template, audit, sibling, dismissal,
   };
 }
 

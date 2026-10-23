@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { serviceNameSchema } from "@/features/services/schema";
 import { createServiceIn } from "@/features/services/service";
+import { linkInTx } from "@/features/revenants/link";
 import { writeAudit } from "@/server/audit";
 import type { WorkspaceContext } from "@/server/auth/context";
 import { hasRole } from "@/server/auth/permissions";
@@ -18,10 +19,18 @@ export const declareIncidentBody = z.object({
   newServiceNames: z.array(serviceNameSchema).max(10).default([]),
   startedAt: z.iso.datetime({ offset: true }).optional(),
   status: z.enum(OPEN_STATUSES).default("INVESTIGATING"),
+  /** Declare it as a recurrence of this earlier incident (its chain's root is used). All or nothing. */
+  revenantOfNumber: z.number().int().positive().optional(),
 });
 export type DeclareIncidentInput = z.output<typeof declareIncidentBody>;
 
-export type DeclareError = "forbidden" | "invalid_service" | "name_taken" | "started_in_future";
+export type DeclareError =
+  | "forbidden"
+  | "invalid_service"
+  | "name_taken"
+  | "started_in_future"
+  | "revenant_not_found"
+  | "revenant_not_earlier";
 
 type Ctx = Pick<WorkspaceContext, "db" | "workspace" | "membership" | "user">;
 
@@ -89,8 +98,14 @@ export async function declareIncident(
             })),
           },
         },
-        select: { id: true, number: true },
+        select: { id: true, number: true, title: true, startedAt: true, revenantOfId: true },
       });
+
+      if (input.revenantOfNumber !== undefined) {
+        const linked = await linkInTx(tx, ctx, incident, input.revenantOfNumber);
+        // a bad target fails the whole request: nothing is created
+        if (!linked.ok) throw new Abort(linked.error === "not_found" ? "revenant_not_found" : "revenant_not_earlier");
+      }
 
       await tx.event.create({
         data: {
@@ -110,7 +125,7 @@ export async function declareIncident(
         targetId: incident.id,
         metadata: { number, severity: input.severity, status: input.status },
       });
-      return { ok: true as const, incident };
+      return { ok: true as const, incident: { id: incident.id, number: incident.number } };
     });
   } catch (err) {
     if (err instanceof Abort) return { ok: false, error: err.reason };

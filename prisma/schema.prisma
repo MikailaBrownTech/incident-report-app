@@ -194,10 +194,13 @@ model Incident {
   events      Event[]
   postmortem  Postmortem?
   actionItems ActionItem[]
+  dismissals  RevenantDismissal[]  @relation("DismissalIncident")
+  dismissedAs RevenantDismissal[]  @relation("DismissalCandidate")
 
   @@unique([workspaceId, number])
   @@unique([workspaceId, seedKey])
   @@unique([id, workspaceId])
+  @@index([revenantOfId])
   @@index([workspaceId, status])
   @@index([workspaceId, startedAt])
   @@index([title(ops: raw("gin_trgm_ops"))], type: Gin, map: "incident_title_trgm")
@@ -247,6 +250,7 @@ enum EventType {
   ROLE_UNASSIGNED
   SERVICES_CHANGED
   REVENANT_LINKED
+  REVENANT_UNLINKED
   POSTMORTEM_PUBLISHED
   RITUAL_CREATED
   RITUAL_COMPLETED
@@ -371,6 +375,21 @@ model ActionItem {
   @@index([ownerId, status])
   @@index([postmortemId])
   @@index([workspaceId, status, position])
+}
+
+// "Not a match": remembers that a person decided candidate X is not a recurrence of incident Y, so it stops being suggested.
+model RevenantDismissal {
+  id            String   @id @default(cuid())
+  workspaceId   String
+  incidentId    String
+  candidateId   String
+  dismissedById String // plain id, like every actor: history survives a member leaving
+  createdAt     DateTime @default(now())
+  incident      Incident @relation("DismissalIncident", fields: [incidentId, workspaceId], references: [id, workspaceId], onDelete: Cascade)
+  candidate     Incident @relation("DismissalCandidate", fields: [candidateId, workspaceId], references: [id, workspaceId], onDelete: Cascade)
+
+  @@unique([incidentId, candidateId])
+  @@index([workspaceId])
 }
 
 // OFF and RECOMMENDED predate M4 and are migrated to OPTIONAL; the app only uses REQUIRED, OPTIONAL and SKIP.

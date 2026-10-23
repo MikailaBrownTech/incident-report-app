@@ -14,6 +14,8 @@ export type AuditAction =
   | "incident.role_changed"
   | "incident.deleted"
   | "incident.note_deleted"
+  | "incident.revenant_linked"
+  | "incident.revenant_unlinked"
   | "postmortem.published"
   | "postmortem.unpublished";
 
