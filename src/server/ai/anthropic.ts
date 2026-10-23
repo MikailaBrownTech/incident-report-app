@@ -15,7 +15,8 @@ export async function generateText(input: { system: string; user: string; maxTok
     headers: { "content-type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
     body: JSON.stringify({
       model: process.env.ANTHROPIC_MODEL || "claude-sonnet-5-5",
-      max_tokens: input.maxTokens ?? 600,
+      max_tokens: input.maxTokens ?? 1500,
+      output_config: { effort: "low" }, // thinking counts against max_tokens: keep it small so the text is never crowded out
       system: input.system,
       messages: [{ role: "user", content: input.user }],
     }),
