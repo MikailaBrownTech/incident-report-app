@@ -6,6 +6,10 @@ import { usePathname } from "next/navigation";
 export interface NavItem {
   href: string;
   label: string;
+  /** A count shown beside the label (spoken as "N overdue"); hidden when zero. */
+  badge?: number;
+  /** Spoken in place of the number, e.g. "2 overdue". */
+  badgeLabel?: string;
 }
 
 export function SidebarNav({ items }: { items: NavItem[] }) {
@@ -26,6 +30,12 @@ export function SidebarNav({ items }: { items: NavItem[] }) {
             className={`block rounded px-3 py-2 hover:bg-surface ${active ? "bg-surface font-semibold text-accent" : ""}`}
           >
             {item.label}
+            {item.badge ? (
+              <span className="ml-2 rounded-full border border-danger px-2 text-xs text-danger">
+                <span aria-hidden="true">{item.badge}</span>
+                <span className="sr-only">{item.badgeLabel ?? item.badge}</span>
+              </span>
+            ) : null}
           </Link>
         );
       })}

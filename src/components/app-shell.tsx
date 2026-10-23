@@ -14,10 +14,12 @@ interface AppShellProps {
   slug: string;
   userEmail: string;
   workspaces: SwitcherWorkspace[];
+  /** My action items that are past due. */
+  overdueCount?: number;
   children: ReactNode;
 }
 
-export function AppShell({ skin, slug, userEmail, workspaces, children }: AppShellProps) {
+export function AppShell({ skin, slug, userEmail, workspaces, overdueCount = 0, children }: AppShellProps) {
   const t = getCopy(skin);
   const base = `/app/${slug}`;
 
@@ -44,6 +46,13 @@ export function AppShell({ skin, slug, userEmail, workspaces, children }: AppShe
               { href: `${base}/dashboard`, label: t.nav.dashboard },
               { href: `${base}/incidents`, label: t.nav.incidents },
               { href: `${base}/postmortems`, label: t.nav.postmortems },
+              {
+                href: `${base}/action-items`,
+                label: t.nav.rituals,
+                badge: overdueCount,
+                badgeLabel: t.ritual.overdueCount(overdueCount),
+              },
+              { href: `${base}/action-items/mine`, label: t.nav.myRituals },
               { href: `${base}/settings/services`, label: t.nav.services },
               { href: `${base}/settings`, label: t.nav.settings },
             ]}
