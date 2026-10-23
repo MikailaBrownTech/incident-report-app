@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { docText, isMeaningful, readContent, validateContent } from "@/features/postmortems/content";
 import { BUILT_IN_TEMPLATES } from "@/features/postmortems/sections";
+import { getActionItemState } from "@/features/action-items/state";
 import { getPostmortemStatus } from "@/features/postmortems/status";
 import { prisma } from "@/server/db/client";
 import { createUser } from "@/test/fixtures";
@@ -58,6 +59,7 @@ describe("seed:mine", () => {
       incidentsCreated: 16,
       incidentsSkipped: 0,
       postmortemsCreated: 4,
+      actionItemsCreated: 20,
     });
     expect(r.numbers).toEqual(Array.from({ length: 16 }, (_, i) => i + 1));
     expect((await prisma.workspace.findUniqueOrThrow({ where: { id: ws.id } })).nextIncidentNumber).toBe(17);
@@ -94,7 +96,7 @@ describe("seed:mine", () => {
       // (postmortem events come after the incident is resolved, so they are checked in their own test)
       expect(
         inc.events
-          .filter((e) => !e.type.startsWith("POSTMORTEM_"))
+          .filter((e) => !e.type.startsWith("POSTMORTEM_") && !e.type.startsWith("RITUAL_"))
           .every((e) => e.occurredAt >= inc.startedAt && e.occurredAt <= (inc.resolvedAt ?? NOW)),
       ).toBe(true);
       const lastStatus = inc.events
@@ -150,6 +152,7 @@ describe("seed:mine", () => {
       links: await prisma.incidentService.count({ where: { workspaceId: ws.id } }),
       roles: await prisma.incidentAssignment.count({ where: { workspaceId: ws.id } }),
       postmortems: await prisma.postmortem.count({ where: { workspaceId: ws.id } }),
+      actionItems: await prisma.actionItem.count({ where: { workspaceId: ws.id } }),
       audits: await prisma.auditLog.count({ where: { workspaceId: ws.id } }),
       next: (await prisma.workspace.findUniqueOrThrow({ where: { id: ws.id } })).nextIncidentNumber,
     });
@@ -161,10 +164,12 @@ describe("seed:mine", () => {
       incidentsSkipped: 16,
       eventsCreated: 0,
       postmortemsCreated: 0,
+      actionItemsCreated: 0,
       numbers: [],
     });
     expect(await counts()).toEqual(before);
     expect(before.postmortems).toBe(4);
+    expect(before.actionItems).toBe(20);
   });
 
   it("seeds postmortems: two published, two drafts, two overdue, one due soon", async () => {
@@ -278,6 +283,82 @@ describe("seed:mine", () => {
     const after = await prisma.postmortem.findUniqueOrThrow({ where: { id: pm.id } });
     expect(after.version).toBe(9);
     expect(after.content).toEqual({ sections: {} });
+  });
+
+  it("seeds twenty action items with the requested mix, tied to the four postmortems", async () => {
+    const { me, ws } = await userWithWorkspace("ai-seed", 2);
+    await run(me.email);
+    const items = await prisma.actionItem.findMany({
+      where: { workspaceId: ws.id },
+      include: { incident: true, postmortem: true },
+    });
+    expect(items).toHaveLength(20);
+    const count = (status: string, withDate?: boolean) =>
+      items.filter((i) => i.status === status && (withDate === undefined || (i.dueDate !== null) === withDate)).length;
+    expect(count("DONE")).toBe(6);
+    expect(count("IN_PROGRESS")).toBe(5);
+    expect(count("OPEN", true)).toBe(5);
+    expect(count("OPEN", false)).toBe(2);
+    expect(count("WONT_DO")).toBe(2);
+
+    // every item hangs off one of the four seeded postmortems, and its incident matches
+    expect(new Set(items.map((i) => i.postmortemId)).size).toBe(4);
+    expect(items.every((i) => i.postmortem.incidentId === i.incidentId && i.createdById === i.ownerId)).toBe(true);
+
+    const states = items.map((i) => getActionItemState({ status: i.status, dueDate: i.dueDate }, NOW));
+    expect(states.filter((s) => s.state === "OVERDUE").length).toBeGreaterThanOrEqual(4);
+    expect(
+      items.filter((i) => getActionItemState({ status: i.status, dueDate: i.dueDate }, NOW).state === "DUE_SOON"),
+    ).toHaveLength(3);
+    expect(items.filter((i) => i.status === "WONT_DO").every((i) => (i.wontDoReason ?? "").length > 5)).toBe(true);
+    expect(items.filter((i) => i.status === "DONE").every((i) => i.completedAt && i.completedAt < NOW)).toBe(true);
+    expect(items.filter((i) => i.status !== "DONE").every((i) => i.completedAt === null)).toBe(true);
+    expect(items.some((i) => i.status === "DONE" && NOW.getTime() - i.completedAt!.getTime() < 14 * 86_400_000)).toBe(
+      true,
+    );
+
+    // owners are real members, spread across the team, with a good share for me
+    const members = new Set((await prisma.membership.findMany({ where: { workspaceId: ws.id } })).map((m) => m.userId));
+    expect(items.every((i) => members.has(i.ownerId))).toBe(true);
+    const mine = items.filter((i) => i.ownerId === me.id).length;
+    expect(mine).toBeGreaterThanOrEqual(6);
+    expect(new Set(items.map((i) => i.ownerId)).size).toBe(3);
+
+    // positions: distinct within each column
+    for (const status of ["OPEN", "IN_PROGRESS", "DONE", "WONT_DO"]) {
+      const col = items.filter((i) => i.status === status).map((i) => i.position);
+      expect(new Set(col).size, status).toBe(col.length);
+    }
+    // a timeline entry when each was created, and when each finished item was completed
+    expect(await prisma.event.count({ where: { workspaceId: ws.id, type: "RITUAL_CREATED" } })).toBe(20);
+    expect(await prisma.event.count({ where: { workspaceId: ws.id, type: "RITUAL_COMPLETED" } })).toBe(6);
+  });
+
+  it("falls back to you when the workspace has fewer members than the seed uses", async () => {
+    const { me, ws } = await userWithWorkspace("ai-solo");
+    await run(me.email);
+    expect(
+      new Set((await prisma.actionItem.findMany({ where: { workspaceId: ws.id } })).map((i) => i.ownerId)),
+    ).toEqual(new Set([me.id]));
+  });
+
+  it("leaves action items alone that people have changed, and adds none to a postmortem that has some", async () => {
+    const { me, ws } = await userWithWorkspace("ai-edit");
+    await run(me.email);
+    const item = await prisma.actionItem.findFirstOrThrow({ where: { workspaceId: ws.id, status: "OPEN" } });
+    await prisma.actionItem.update({
+      where: { id: item.id },
+      data: { title: "Edited by a person", status: "DONE", completedAt: NOW },
+    });
+    await prisma.actionItem.delete({
+      where: {
+        id: (await prisma.actionItem.findFirstOrThrow({ where: { workspaceId: ws.id, status: "WONT_DO" } })).id,
+      },
+    });
+    const r = await run(me.email);
+    expect(r.actionItemsCreated).toBe(0);
+    expect(await prisma.actionItem.count({ where: { workspaceId: ws.id } })).toBe(19);
+    expect((await prisma.actionItem.findUniqueOrThrow({ where: { id: item.id } })).title).toBe("Edited by a person");
   });
 
   it("reuses services that already exist, and never resurrects a deleted incident", async () => {

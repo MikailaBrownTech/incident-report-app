@@ -210,6 +210,7 @@ export const haunted = {
         author: "Examiner",
         due: "Due",
         published: "Filed",
+        actionItems: "Rituals",
       },
       filterState: "State",
       filterSeverity: "Severity",

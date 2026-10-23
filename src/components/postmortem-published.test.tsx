@@ -7,6 +7,7 @@ import { ToastProvider } from "@/components/toast";
 import { getCopy, type SkinKey } from "@/copy";
 import { CopyProvider } from "@/copy/provider";
 import { docFromBullets, docFromParagraphs, type Doc } from "@/features/postmortems/content";
+import type { ActionItemView } from "@/features/action-items/schema";
 import type { PostmortemPayload } from "@/features/postmortems/schema";
 import { BUILT_IN_TEMPLATES, STANDARD_TEMPLATE_ID } from "@/features/postmortems/sections";
 import { polyfillDialog } from "@/test/dialog-polyfill";
@@ -71,6 +72,8 @@ function setup(
     sections?: Record<string, Doc>;
     skin?: SkinKey;
     onUnpublished?: (p: PostmortemPayload) => void;
+    actionItems?: ActionItemView[];
+    actionPanel?: React.ReactNode;
   } = {},
 ) {
   const onUnpublished = opts.onUnpublished ?? vi.fn();
@@ -84,6 +87,8 @@ function setup(
           payload={payload(opts.sections ?? SECTIONS)}
           canUnpublish={opts.canUnpublish ?? false}
           onUnpublished={onUnpublished}
+          actionItems={opts.actionItems}
+          actionPanel={opts.actionPanel}
         />
       </ToastProvider>
     </CopyProvider>,
@@ -100,7 +105,6 @@ describe("reading", () => {
       "Root cause and contributing factors",
       "Key moments",
       "What we learned",
-      T.actionItems.heading,
     ]);
     expect(screen.getByText("connection pool").tagName).toBe("STRONG");
     expect(screen.getByRole("link", { name: "runbook" })).toHaveAttribute("href", "https://example.com/runbook");
@@ -119,11 +123,12 @@ describe("reading", () => {
     expect(screen.getByText(/Published by Priya Raman on /)).toBeInTheDocument();
   });
 
-  it("has an action items area that is an honest placeholder, with no invented items", () => {
+  it("shows the live action items panel it is given, and invents nothing when there is none", () => {
     setup();
-    const area = screen.getByRole("heading", { name: T.actionItems.heading }).closest("section")!;
-    expect(within(area).getByText(T.actionItems.placeholder)).toBeInTheDocument();
-    expect(within(area).queryAllByRole("listitem")).toHaveLength(0);
+    expect(screen.queryByTestId("panel-stub")).toBeNull();
+    cleanup();
+    setup({ actionPanel: <div data-testid="panel-stub" /> });
+    expect(screen.getByTestId("panel-stub")).toBeInTheDocument();
   });
 
   it("never renders a script or javascript link, even from stored content that predates the allowlist", () => {
@@ -164,6 +169,55 @@ describe("copy as markdown", () => {
     expect(md.indexOf("## Impact")).toBeLessThan(md.indexOf("## What we learned"));
     expect(md).not.toContain("## How we found out"); // empty sections are left out
     expect(screen.getByText(T.copied)).toBeInTheDocument();
+  });
+
+  it("includes the action items as a checklist, checked when done", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
+    const mk = (over: Partial<ActionItemView>): ActionItemView => ({
+      id: "i",
+      title: "Item",
+      description: "",
+      status: "OPEN",
+      wontDoReason: null,
+      dueDate: null,
+      completedAt: null,
+      ownerId: "u2",
+      createdById: "u2",
+      position: "a0",
+      postmortemId: "pm1",
+      incident: { id: "inc", number: 5, title: "x", severity: 4 },
+      createdAt: "2026-06-10T10:00:00.000Z",
+      updatedAt: "2026-06-10T10:00:00.000Z",
+      ...over,
+    });
+    setup({
+      actionItems: [
+        mk({ id: "a", title: "Add a pool alert", status: "DONE", dueDate: "2026-06-20" }),
+        mk({ id: "b", title: "Separate the export queue", status: "IN_PROGRESS" }),
+        mk({ id: "c", title: "Rewrite the importer", status: "WONT_DO", wontDoReason: "Replaced by the vendor" }),
+      ],
+    });
+    await act(async () => fireEvent.click(screen.getByRole("button", { name: T.copyMarkdown })));
+    const md = writeText.mock.calls[0][0] as string;
+    expect(md).toContain(
+      [
+        "## Action items",
+        "",
+        "- [x] Add a pool alert (Priya Raman, due 2026-06-20)",
+        "- [ ] Separate the export queue (Priya Raman)",
+        "- [ ] ~~Rewrite the importer~~ (Replaced by the vendor) (Priya Raman)",
+      ].join("\n"),
+    );
+    expect(md.indexOf("## Action items")).toBeGreaterThan(md.indexOf("## What we learned"));
+  });
+
+  it("leaves the checklist out when there are no action items", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
+    setup();
+    await act(async () => fireEvent.click(screen.getByRole("button", { name: T.copyMarkdown })));
+    expect(writeText.mock.calls[0][0]).not.toContain("Action items");
   });
 
   it("says so when the clipboard is unavailable", async () => {

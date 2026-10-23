@@ -1,4 +1,5 @@
 import type { IncidentStatus, PrismaClient, Prisma } from "@/generated/prisma/client";
+import { ensureSeedActionItems, type SeedActionItem } from "./action-items";
 import { ensureSeedPostmortem, type SeedPostmortem } from "./postmortems";
 
 /**
@@ -383,6 +384,33 @@ const POSTMORTEMS: Record<number, SeedPostmortem> = {
   },
 };
 
+/** Action items for those postmortems (owner index 0-4 = Morgan, Riley, Sam, Priya, Diego). */
+const ACTION_ITEMS: Record<number, SeedActionItem[]> = {
+  3: [
+    {
+      title: "Measure query cost in staging before every release",
+      owner: 1,
+      status: "DONE",
+      dueInDays: -60,
+      completedDaysAgo: 4,
+    },
+    { title: "Add a five second statement timeout to every service", owner: 2, status: "IN_PROGRESS", dueInDays: -2 },
+    { title: "Alert on connection pool utilisation", owner: 3, status: "OPEN", dueInDays: 9 },
+  ],
+  6: [
+    { title: "Standardise connection retry settings", owner: 0, status: "OPEN", dueInDays: 2 },
+    { title: "Rehearse upgrades against a copy of production", owner: 1, status: "IN_PROGRESS", dueInDays: 12 },
+    {
+      title: "Document the failover runbook",
+      owner: 3,
+      status: "WONT_DO",
+      dueInDays: null,
+      reason: "Folded into the on-call guide",
+    },
+  ],
+  5: [{ title: "Alert on webhook error rate", owner: 4, status: "OPEN", dueInDays: null }],
+};
+
 export interface SeedResult {
   workspaceId: string;
   createdIncidents: number;
@@ -594,6 +622,22 @@ export async function seedDemo(db: PrismaClient, options: { now?: Date } = {}): 
       publisherId: spec.roles.COMMANDER ?? person("morgan"),
       now,
     });
+    const items = ACTION_ITEMS[number];
+    const postmortem = items
+      ? await db.postmortem.findUnique({
+          where: { incidentId: incident.id },
+          select: { id: true, incidentId: true, createdAt: true },
+        })
+      : null;
+    if (items && postmortem) {
+      await ensureSeedActionItems(db, {
+        workspaceId,
+        postmortem,
+        items,
+        personAt: (i) => PEOPLE[i % PEOPLE.length].id,
+        now,
+      });
+    }
   }
 
   // New incidents declared after seeding must not collide with the seeded numbers.

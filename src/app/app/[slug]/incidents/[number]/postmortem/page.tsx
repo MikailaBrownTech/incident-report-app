@@ -2,7 +2,10 @@ import { notFound, redirect } from "next/navigation";
 import { PostmortemPage } from "@/components/postmortem-page";
 import type { SeverityOverrides } from "@/copy";
 import { incidentNumberSchema, type StatusKey } from "@/features/incidents/schema";
+import { parseListParams } from "@/features/action-items/schema";
+import { listItems } from "@/features/action-items/service";
 import { getPostmortem } from "@/features/postmortems/service";
+import { listMembers } from "@/features/workspaces/queries";
 import { getWorkspaceContext } from "@/server/auth/context";
 import { hasRole } from "@/server/auth/permissions";
 
@@ -21,6 +24,11 @@ export default async function PostmortemRoute({ params }: PageProps<"/app/[slug]
   const payload = await getPostmortem(ctx, n);
   if (!payload) redirect(`/app/${slug}/incidents/${n}`);
 
+  const [items, members] = await Promise.all([
+    listItems(ctx, parseListParams({ incident: String(n), sort: "created", limit: "100" })),
+    listMembers(ctx.db),
+  ]);
+
   return (
     <PostmortemPage
       key={payload.postmortem.id}
@@ -29,6 +37,11 @@ export default async function PostmortemRoute({ params }: PageProps<"/app/[slug]
       severityLabels={ctx.workspace.severityLabels as SeverityOverrides}
       initial={payload}
       canUnpublish={hasRole(ctx.membership.role, "ADMIN")}
+      actionItems={items.items}
+      actionPeople={items.people}
+      members={members.map(({ userId, name, email, image }) => ({ userId, name, email, image }))}
+      currentUserId={ctx.user.id}
+      isAdmin={hasRole(ctx.membership.role, "ADMIN")}
     />
   );
 }

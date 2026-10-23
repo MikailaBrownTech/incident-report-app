@@ -211,6 +211,7 @@ export const professional = {
         author: "Author",
         due: "Due",
         published: "Published",
+        actionItems: "Action items",
       },
       filterState: "State",
       filterSeverity: "Severity",

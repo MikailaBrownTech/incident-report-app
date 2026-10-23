@@ -100,6 +100,7 @@ function setup(
             order: "asc",
           }}
           postmortem={{ status: null, rules: [], templates: [] }}
+          rituals={{ done: 0, total: 0, overdue: 0 }}
         />
       </ToastProvider>
     </CopyProvider>,

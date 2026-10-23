@@ -4,6 +4,8 @@ import { z } from "zod";
 import type { IncidentRole, IncidentStatus, Prisma, PrismaClient } from "@/generated/prisma/client";
 import { createWorkspaceWithOwner } from "@/server/db/root";
 import { DUE_SOON_KEY, DUE_SOON_RESOLVED_DAYS_AGO, seedPostmortemsFor } from "./mine-postmortems";
+import { ensureSeedActionItems } from "./action-items";
+import { MINE_ACTION_ITEMS } from "./mine-action-items";
 import { ensureSeedPostmortem } from "./postmortems";
 
 /**
@@ -95,6 +97,7 @@ export interface MineResult {
   incidentsSkipped: number;
   eventsCreated: number;
   postmortemsCreated: number;
+  actionItemsCreated: number;
   numbers: number[];
   incidentsDeleted: number;
   incidentsKept: number;
@@ -140,6 +143,7 @@ export async function seedMine(db: PrismaClient, opts: MineOptions): Promise<Min
     incidentsSkipped: 0,
     eventsCreated: 0,
     postmortemsCreated: 0,
+    actionItemsCreated: 0,
     numbers: [],
     incidentsDeleted: 0,
     incidentsKept: 0,
@@ -372,6 +376,26 @@ export async function seedMine(db: PrismaClient, opts: MineOptions): Promise<Min
     if (created) {
       base.postmortemsCreated += 1;
       base.eventsCreated += plan.status === "PUBLISHED" ? 2 : 1;
+    }
+
+    // 9. action items for that postmortem (skipped if it already has any)
+    const items = MINE_ACTION_ITEMS[seedKeyOf(spec.title)];
+    const postmortem = items
+      ? await db.postmortem.findUnique({
+          where: { incidentId: incident.id },
+          select: { id: true, incidentId: true, createdAt: true },
+        })
+      : null;
+    if (items && postmortem) {
+      const made = await ensureSeedActionItems(db, {
+        workspaceId,
+        postmortem,
+        items,
+        personAt: (i) => people[i] ?? user.id,
+        now,
+      });
+      base.actionItemsCreated += made;
+      if (made) base.eventsCreated += made + items.filter((i) => i.status === "DONE").length; // created + completed entries
     }
   }
 

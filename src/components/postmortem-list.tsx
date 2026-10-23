@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { AlertTriangle } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Avatar } from "@/components/avatar";
 import { SeverityBadge, DueLabel } from "@/components/badges";
@@ -94,6 +95,7 @@ export function PostmortemList({ slug, initial, initialCursor, queryString, hasF
                 l.columns.author,
                 l.columns.due,
                 l.columns.published,
+                l.columns.actionItems,
               ].map((label) => (
                 <th key={label} role="columnheader" scope="col" className={rt.th}>
                   {label}
@@ -155,6 +157,21 @@ export function PostmortemList({ slug, initial, initialCursor, queryString, hasF
                       </span>
                     ) : (
                       <span className="text-muted">{t.postmortem.noDueDate}</span>
+                    )}
+                  </td>
+                  <td role="cell" data-label={l.columns.actionItems} className={rt.td}>
+                    {r.actionItems && r.actionItems.total > 0 ? (
+                      <span className="inline-flex flex-wrap items-center gap-2 text-sm">
+                        {t.ritual.progress(r.actionItems.done, r.actionItems.total)}
+                        {r.actionItems.overdue > 0 && (
+                          <span className="inline-flex items-center gap-1 font-medium text-danger">
+                            <AlertTriangle aria-hidden="true" className="size-3.5" />
+                            {t.ritual.overdueCount(r.actionItems.overdue)}
+                          </span>
+                        )}
+                      </span>
+                    ) : (
+                      <span className="text-muted">{"-"}</span>
                     )}
                   </td>
                   <td role="cell" data-label={l.columns.published} className={`${rt.td} whitespace-nowrap`}>

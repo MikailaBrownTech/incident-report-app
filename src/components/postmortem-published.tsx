@@ -1,7 +1,7 @@
 "use client";
 
 import { Printer } from "lucide-react";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { primaryButton, secondaryButton } from "@/components/form";
 import { RichTextView } from "@/components/rich-text-view";
@@ -11,6 +11,7 @@ import type { PostmortemSectionKey } from "@/copy/types";
 import { useCopy } from "@/copy/provider";
 import { isMeaningful, docText } from "@/features/postmortems/content";
 import { postmortemToMarkdown } from "@/features/postmortems/markdown";
+import type { ActionItemView } from "@/features/action-items/schema";
 import type { PostmortemPayload } from "@/features/postmortems/schema";
 import { api } from "@/lib/api-client";
 import { formatExact } from "@/lib/time";
@@ -22,10 +23,23 @@ interface Props {
   payload: PostmortemPayload;
   canUnpublish: boolean;
   onUnpublished: (payload: PostmortemPayload) => void;
+  /** The postmortem's action items (live), for the markdown checklist. */
+  actionItems?: ActionItemView[];
+  /** The live action items panel, shown in place of the old placeholder. */
+  actionPanel?: ReactNode;
 }
 
 /** The finished postmortem: read-only, clean to print, copyable as markdown. */
-export function PostmortemPublished({ slug, incident, severityLabels, payload, canUnpublish, onUnpublished }: Props) {
+export function PostmortemPublished({
+  slug,
+  incident,
+  severityLabels,
+  payload,
+  canUnpublish,
+  onUnpublished,
+  actionItems = [],
+  actionPanel,
+}: Props) {
   const t = useCopy();
   const p = t.postmortem;
   const toast = useToast();
@@ -53,6 +67,16 @@ export function PostmortemPublished({ slug, incident, severityLabels, payload, c
       ],
       sections: defs.map((d) => ({ key: d.key, title: titleOf(d.key) })),
       content: postmortem.sections,
+      actionItems: {
+        heading: t.ritual.card.heading,
+        items: actionItems.map((i) => ({
+          title: i.title,
+          done: i.status === "DONE",
+          wontDo: i.status === "WONT_DO" ? (i.wontDoReason ?? "") : undefined,
+          owner: nameOf(i.ownerId) || undefined,
+          due: i.dueDate,
+        })),
+      },
     });
     try {
       await navigator.clipboard.writeText(text);
@@ -118,15 +142,7 @@ export function PostmortemPublished({ slug, incident, severityLabels, payload, c
           </section>
         ))}
 
-        <section
-          aria-labelledby="action-items-heading"
-          className="space-y-2 rounded border border-dashed border-border p-4"
-        >
-          <h2 id="action-items-heading" className="text-lg font-semibold">
-            {p.actionItems.heading}
-          </h2>
-          <p className="text-sm text-muted">{p.actionItems.placeholder}</p>
-        </section>
+        {actionPanel}
       </div>
 
       <ConfirmDialog

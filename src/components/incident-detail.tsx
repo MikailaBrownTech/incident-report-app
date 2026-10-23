@@ -6,6 +6,7 @@ import { useRef, useState, type FormEvent } from "react";
 import { SeverityBadge, StatusPill } from "@/components/badges";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { dangerButton, inputClass, labelClass, primaryButton, secondaryButton } from "@/components/form";
+import { IncidentRitualsCard } from "@/components/incident-rituals-card";
 import { IncidentTimeline } from "@/components/incident-timeline";
 import { PostmortemPanel } from "@/components/postmortem-panel";
 import { Markdown } from "@/components/markdown";
@@ -24,6 +25,7 @@ import {
   type RoleKey,
   type StatusKey,
 } from "@/features/incidents/schema";
+import type { Progress } from "@/features/action-items/schema";
 import type { TemplateView } from "@/features/postmortems/sections";
 import type { RuleLike } from "@/features/postmortems/status";
 import type { TimelineFilter, TimelineOrder, TimelinePage } from "@/features/timeline/schema";
@@ -39,6 +41,8 @@ interface Props {
   currentUserId: string;
   timeline: { page: TimelinePage; filter: TimelineFilter; order: TimelineOrder };
   postmortem: { status: "DRAFT" | "PUBLISHED" | null; rules: RuleLike[]; templates: TemplateView[] };
+  /** Done of total action items, and how many are overdue. */
+  rituals: Progress;
 }
 
 type Saved = ApiResult<{ incident: IncidentDetailView }>;
@@ -55,6 +59,7 @@ export function IncidentDetail({
   currentUserId,
   timeline,
   postmortem,
+  rituals,
 }: Props) {
   const t = useCopy();
   const toast = useToast();
@@ -370,117 +375,122 @@ export function IncidentDetail({
         />
       </div>
 
-      <aside
-        aria-labelledby="properties-heading"
-        className="space-y-5 rounded border border-border bg-surface p-4 lg:self-start"
-      >
-        <h2 id="properties-heading" className="text-lg font-semibold">
-          {t.incidentDetail.propertiesHeading}
-        </h2>
+      <div className="space-y-5 lg:self-start">
+        <aside aria-labelledby="properties-heading" className="space-y-5 rounded border border-border bg-surface p-4">
+          <h2 id="properties-heading" className="text-lg font-semibold">
+            {t.incidentDetail.propertiesHeading}
+          </h2>
 
-        <div>
-          <label htmlFor="prop-status" className={labelClass}>
-            {t.incidentDetail.statusLabel}
-          </label>
-          <select
-            id="prop-status"
-            value={incident.status}
-            onChange={(e) => changeStatus(e.target.value as StatusKey)}
-            className={inputClass}
-          >
-            {ALL_STATUSES.map((s) => (
-              <option key={s} value={s}>
-                {t.status[s]}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label htmlFor="prop-severity" className={labelClass}>
-            {t.incidentDetail.severityLabel}
-          </label>
-          <select
-            id="prop-severity"
-            value={incident.severity}
-            onChange={(e) => changeSeverity(Number(e.target.value))}
-            className={inputClass}
-          >
-            {SEVERITIES.map((s) => (
-              <option key={s} value={s}>
-                {s} {severityName(t, s, severityLabels)}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <ServicePicker
-          services={services}
-          selectedIds={incident.services.map((s) => s.id)}
-          newNames={[]}
-          canCreate={false}
-          onChange={({ selectedIds }) => changeServices(selectedIds)}
-        />
-
-        <fieldset className="space-y-3">
-          <legend className={labelClass}>{t.incidentDetail.rolesHeading}</legend>
-          {ROLE_KEYS.map((role) => (
-            <div key={role}>
-              <label htmlFor={`role-${role}`} className="mb-1 block text-xs text-muted">
-                {roleLabel(role)}
-              </label>
-              <select
-                id={`role-${role}`}
-                value={incident.roles[role]?.userId ?? ""}
-                onChange={(e) => changeRole(role, e.target.value || null)}
-                className={inputClass}
-              >
-                <option value="">{t.incidentDetail.unassigned}</option>
-                {members.map((m) => (
-                  <option key={m.userId} value={m.userId}>
-                    {m.name || m.email}
-                  </option>
-                ))}
-              </select>
-            </div>
-          ))}
-        </fieldset>
-
-        <dl className="space-y-3 border-t border-border pt-4 text-sm">
           <div>
-            <dt className="text-xs text-muted">{t.incidentDetail.startedLabel}</dt>
-            <dd>
-              <RelativeTime iso={incident.startedAt} />
-            </dd>
+            <label htmlFor="prop-status" className={labelClass}>
+              {t.incidentDetail.statusLabel}
+            </label>
+            <select
+              id="prop-status"
+              value={incident.status}
+              onChange={(e) => changeStatus(e.target.value as StatusKey)}
+              className={inputClass}
+            >
+              {ALL_STATUSES.map((s) => (
+                <option key={s} value={s}>
+                  {t.status[s]}
+                </option>
+              ))}
+            </select>
           </div>
-          {incident.resolvedAt ? (
+
+          <div>
+            <label htmlFor="prop-severity" className={labelClass}>
+              {t.incidentDetail.severityLabel}
+            </label>
+            <select
+              id="prop-severity"
+              value={incident.severity}
+              onChange={(e) => changeSeverity(Number(e.target.value))}
+              className={inputClass}
+            >
+              {SEVERITIES.map((s) => (
+                <option key={s} value={s}>
+                  {s} {severityName(t, s, severityLabels)}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <ServicePicker
+            services={services}
+            selectedIds={incident.services.map((s) => s.id)}
+            newNames={[]}
+            canCreate={false}
+            onChange={({ selectedIds }) => changeServices(selectedIds)}
+          />
+
+          <fieldset className="space-y-3">
+            <legend className={labelClass}>{t.incidentDetail.rolesHeading}</legend>
+            {ROLE_KEYS.map((role) => (
+              <div key={role}>
+                <label htmlFor={`role-${role}`} className="mb-1 block text-xs text-muted">
+                  {roleLabel(role)}
+                </label>
+                <select
+                  id={`role-${role}`}
+                  value={incident.roles[role]?.userId ?? ""}
+                  onChange={(e) => changeRole(role, e.target.value || null)}
+                  className={inputClass}
+                >
+                  <option value="">{t.incidentDetail.unassigned}</option>
+                  {members.map((m) => (
+                    <option key={m.userId} value={m.userId}>
+                      {m.name || m.email}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ))}
+          </fieldset>
+
+          <dl className="space-y-3 border-t border-border pt-4 text-sm">
             <div>
-              <dt className="text-xs text-muted">{t.incidentDetail.resolvedLabel}</dt>
-              <dd data-testid="resolved-at">
-                <RelativeTime iso={incident.resolvedAt} />
+              <dt className="text-xs text-muted">{t.incidentDetail.startedLabel}</dt>
+              <dd>
+                <RelativeTime iso={incident.startedAt} />
               </dd>
             </div>
-          ) : null}
-          <div>
-            <dt className="text-xs text-muted">{t.incidentDetail.durationLabel}</dt>
-            <dd className="font-mono">
-              <LiveDuration startedAt={incident.startedAt} resolvedAt={incident.resolvedAt} />
-            </dd>
-          </div>
-          <div>
-            <dt className="text-xs text-muted">{t.incidentDetail.createdByLabel}</dt>
-            <dd>{incident.createdBy ? incident.createdBy.name || incident.createdBy.email : "—"}</dd>
-          </div>
-        </dl>
+            {incident.resolvedAt ? (
+              <div>
+                <dt className="text-xs text-muted">{t.incidentDetail.resolvedLabel}</dt>
+                <dd data-testid="resolved-at">
+                  <RelativeTime iso={incident.resolvedAt} />
+                </dd>
+              </div>
+            ) : null}
+            <div>
+              <dt className="text-xs text-muted">{t.incidentDetail.durationLabel}</dt>
+              <dd className="font-mono">
+                <LiveDuration startedAt={incident.startedAt} resolvedAt={incident.resolvedAt} />
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs text-muted">{t.incidentDetail.createdByLabel}</dt>
+              <dd>{incident.createdBy ? incident.createdBy.name || incident.createdBy.email : "—"}</dd>
+            </div>
+          </dl>
 
-        {canDelete ? (
-          <div className="border-t border-border pt-4">
-            <button type="button" className={dangerButton} onClick={() => setConfirmDelete(true)}>
-              {t.incidentDetail.deleteIncident}
-            </button>
-          </div>
-        ) : null}
-      </aside>
+          {canDelete ? (
+            <div className="border-t border-border pt-4">
+              <button type="button" className={dangerButton} onClick={() => setConfirmDelete(true)}>
+                {t.incidentDetail.deleteIncident}
+              </button>
+            </div>
+          ) : null}
+        </aside>
+        <IncidentRitualsCard
+          slug={slug}
+          incidentNumber={incident.number}
+          hasPostmortem={postmortem.status !== null}
+          progress={rituals}
+        />
+      </div>
 
       <ConfirmDialog
         open={confirmDelete}

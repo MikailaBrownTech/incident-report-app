@@ -78,6 +78,7 @@ async function main() {
   console.log(`Incidents skipped:  ${r.incidentsSkipped} (already seeded)`);
   console.log(`Events created:     ${r.eventsCreated}`);
   console.log(`Postmortems created: ${r.postmortemsCreated}`);
+  console.log(`Action items created: ${r.actionItemsCreated}`);
   console.log(`Incident numbers:   ${r.numbers.length ? r.numbers.join(", ") : "none"}`);
   console.log(`Open: /app/${r.workspaceSlug}/incidents`);
 }

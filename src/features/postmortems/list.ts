@@ -1,3 +1,4 @@
+import { progressBy } from "@/features/action-items/service";
 import { numberFromQuery } from "@/features/incidents/list-params";
 import type { Prisma } from "@/generated/prisma/client";
 import type { ScopedDb } from "@/server/db/tenant";
@@ -100,6 +101,7 @@ export async function listPostmortems(
       dueAt: s.state === "PUBLISHED" ? null : (s.dueAt?.toISOString() ?? null),
       publishedAt: inc.postmortem?.publishedAt?.toISOString() ?? null,
       author: null, // filled in for the page below
+      actionItems: null,
     });
   }
 
@@ -120,6 +122,12 @@ export async function listPostmortems(
     const id = authorOf.get(r.incidentId);
     r.author = id ? (people[id] ?? { userId: id, name: "", email: "", image: null }) : null;
   }
+  const progress = await progressBy(
+    db,
+    "postmortemId",
+    page.flatMap((r) => (r.postmortemId ? [r.postmortemId] : [])),
+  );
+  for (const r of page) r.actionItems = r.postmortemId ? (progress.get(r.postmortemId) ?? null) : null;
   const last = page[page.length - 1];
   return {
     items: page,

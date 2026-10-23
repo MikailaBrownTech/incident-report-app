@@ -1,7 +1,7 @@
 "use client";
 
 import { Circle, CircleCheck, CircleDot } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { primaryButton, secondaryButton } from "@/components/form";
 import { PostmortemBadge } from "@/components/postmortem-badge";
@@ -21,6 +21,10 @@ interface Props {
   onPublished: (payload: PostmortemPayload) => void;
   /** Wait this long after the last keystroke before saving. */
   autosaveMs?: number;
+  /** The action items panel: beside the sections on a wide screen, below them on a phone. */
+  aside?: ReactNode;
+  /** When it is 0, publishing asks "No action items yet. Publish anyway?" first. Left out: no question. */
+  actionItemCount?: number;
 }
 
 type SaveState = "idle" | "dirty" | "saving" | "saved" | "error" | "conflict";
@@ -30,7 +34,15 @@ const MAX_BACKOFF_MS = 30_000;
 const scrollToSection = (key: string) =>
   document.getElementById(`section-${key}`)?.scrollIntoView?.({ behavior: "smooth", block: "start" });
 
-export function PostmortemEditor({ slug, incidentNumber, initial, onPublished, autosaveMs = 1500 }: Props) {
+export function PostmortemEditor({
+  slug,
+  incidentNumber,
+  initial,
+  onPublished,
+  autosaveMs = 1500,
+  aside,
+  actionItemCount,
+}: Props) {
   const t = useCopy();
   const p = t.postmortem;
   const toast = useToast();
@@ -48,6 +60,7 @@ export function PostmortemEditor({ slug, incidentNumber, initial, onPublished, a
   const [publishing, setPublishing] = useState(false);
   const [confirmRefresh, setConfirmRefresh] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [askNoItems, setAskNoItems] = useState(false);
   const [promptOpen, setPromptOpen] = useState<Record<string, boolean>>({});
 
   // What the save logic reads is kept in refs, so a timer or a promise never sees stale values.
@@ -258,7 +271,14 @@ export function PostmortemEditor({ slug, incidentNumber, initial, onPublished, a
   }
 
   // ---- publish -----------------------------------------------------------------------------------------------
+  /** A soft warning, never a block: with no action items, ask once before publishing. */
+  function requestPublish() {
+    if (actionItemCount === 0) setAskNoItems(true);
+    else void publish();
+  }
+
   async function publish() {
+    setAskNoItems(false);
     setPublishing(true);
     setMissing([]);
     const saved = await flush();
@@ -325,7 +345,7 @@ export function PostmortemEditor({ slug, incidentNumber, initial, onPublished, a
             {saveLabel}
           </span>
         </div>
-        <button type="button" className={primaryButton} onClick={() => void publish()} disabled={publishing}>
+        <button type="button" className={primaryButton} onClick={requestPublish} disabled={publishing}>
           {publishing ? p.publishing : p.publish}
         </button>
       </div>
@@ -336,7 +356,7 @@ export function PostmortemEditor({ slug, incidentNumber, initial, onPublished, a
         </p>
       )}
 
-      <div className="md:flex md:gap-8">
+      <div className="md:flex md:flex-wrap md:gap-8 lg:flex-nowrap">
         <div className="md:w-60 md:shrink-0 print:hidden">
           <nav aria-label={p.sectionsNav} className="hidden md:sticky md:top-20 md:block">
             <ol className="space-y-1 text-sm">
@@ -430,8 +450,18 @@ export function PostmortemEditor({ slug, incidentNumber, initial, onPublished, a
             );
           })}
         </div>
+        {aside && <aside className="w-full shrink-0 print:hidden lg:w-80">{aside}</aside>}
       </div>
 
+      <ConfirmDialog
+        open={askNoItems}
+        title={t.ritual.editor.publishWarning}
+        body={t.ritual.editor.none}
+        confirmLabel={t.ritual.editor.publishAnyway}
+        pending={publishing}
+        onConfirm={() => void publish()}
+        onCancel={() => setAskNoItems(false)}
+      />
       <ConfirmDialog
         open={confirmRefresh}
         title={p.refreshTimelineTitle}

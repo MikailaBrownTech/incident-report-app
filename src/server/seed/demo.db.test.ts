@@ -24,6 +24,7 @@ const counts = async () => ({
   assignments: await prisma.incidentAssignment.count({ where: { workspaceId: wsId } }),
   events: await prisma.event.count({ where: { workspaceId: wsId } }),
   postmortems: await prisma.postmortem.count({ where: { workspaceId: wsId } }),
+  actionItems: await prisma.actionItem.count({ where: { workspaceId: wsId } }),
   audits: await prisma.auditLog.count({ where: { workspaceId: wsId } }),
   workspaces: await prisma.workspace.count({ where: { slug: DEMO_SLUG } }),
   retroRules: await prisma.retroRule.count({ where: { workspaceId: wsId } }),
@@ -113,7 +114,9 @@ describe("demo seed", () => {
       // postmortem events come after resolution and have their own test below
       include: {
         events: {
-          where: { type: { notIn: ["POSTMORTEM_STARTED", "POSTMORTEM_PUBLISHED"] } },
+          where: {
+            type: { notIn: ["POSTMORTEM_STARTED", "POSTMORTEM_PUBLISHED", "RITUAL_CREATED", "RITUAL_COMPLETED"] },
+          },
           orderBy: { occurredAt: "asc" },
         },
       },
@@ -217,6 +220,15 @@ describe("demo seed", () => {
       include: { postmortem: true },
     });
     expect(getPostmortemStatus(ten, rules, ten.postmortem, NOW).state).toBe("OVERDUE"); // severity 4, resolved, none
+  });
+
+  it("has a few action items on the postmortems, owned by real members", async () => {
+    const items = await prisma.actionItem.findMany({ where: { workspaceId: wsId }, include: { incident: true } });
+    expect(items).toHaveLength(7);
+    expect(new Set(items.map((i) => i.incident.number))).toEqual(new Set([3, 5, 6]));
+    const members = new Set((await prisma.membership.findMany({ where: { workspaceId: wsId } })).map((m) => m.userId));
+    expect(items.every((i) => members.has(i.ownerId))).toBe(true);
+    expect(items.filter((i) => i.status === "WONT_DO").every((i) => i.wontDoReason)).toBe(true);
   });
 
   it("includes look-alike titles that trigram matching actually pairs up", async () => {

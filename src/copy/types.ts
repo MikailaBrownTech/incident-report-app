@@ -150,7 +150,15 @@ export interface CopyDictionary {
     overdueBy: (days: number) => string;
     noDueDate: string;
     list: {
-      columns: { incident: string; severity: string; state: string; author: string; due: string; published: string };
+      columns: {
+        incident: string;
+        severity: string;
+        state: string;
+        author: string;
+        due: string;
+        published: string;
+        actionItems: string;
+      };
       filterState: string;
       filterSeverity: string;
       needsAttention: string;

@@ -2,13 +2,15 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { ActionItemsPanel } from "@/components/action-items-panel";
 import { SeverityBadge, StatusPill } from "@/components/badges";
 import { PostmortemBadge } from "@/components/postmortem-badge";
 import { PostmortemEditor } from "@/components/postmortem-editor";
 import { PostmortemPublished } from "@/components/postmortem-published";
 import { type SeverityLevel, type SeverityOverrides, severityName } from "@/copy";
 import { useCopy } from "@/copy/provider";
-import type { StatusKey } from "@/features/incidents/schema";
+import type { ActionItemView } from "@/features/action-items/schema";
+import type { PersonView, StatusKey } from "@/features/incidents/schema";
 import type { PostmortemPayload } from "@/features/postmortems/schema";
 
 interface Props {
@@ -18,15 +20,48 @@ interface Props {
   initial: PostmortemPayload;
   canUnpublish: boolean;
   autosaveMs?: number;
+  /** The postmortem's action items, the people they mention, and who can be given one. */
+  actionItems?: ActionItemView[];
+  actionPeople?: Record<string, PersonView>;
+  members?: PersonView[];
+  currentUserId?: string;
+  isAdmin?: boolean;
 }
 
 /** The incident header card, then the editor (draft) or the read-only document (published). */
-export function PostmortemPage({ slug, incident, severityLabels, initial, canUnpublish, autosaveMs }: Props) {
+export function PostmortemPage({
+  slug,
+  incident,
+  severityLabels,
+  initial,
+  canUnpublish,
+  autosaveMs,
+  actionItems = [],
+  actionPeople = {},
+  members = [],
+  currentUserId = "",
+  isAdmin = false,
+}: Props) {
   const t = useCopy();
   const [payload, setPayload] = useState(initial);
   // a new editor each time the postmortem comes back from being published
   const [generation, setGeneration] = useState(0);
+  const [items, setItems] = useState(actionItems);
+  const [people, setPeople] = useState(actionPeople);
   const published = payload.postmortem.status === "PUBLISHED";
+  const panel = (
+    <ActionItemsPanel
+      slug={slug}
+      incidentNumber={incident.number}
+      items={items}
+      people={people}
+      members={members}
+      currentUserId={currentUserId}
+      isAdmin={isAdmin}
+      onItems={setItems}
+      onPeople={(p) => setPeople((cur) => ({ ...cur, ...p }))}
+    />
+  );
 
   return (
     <div className="space-y-5">
@@ -64,6 +99,8 @@ export function PostmortemPage({ slug, incident, severityLabels, initial, canUnp
           incident={incident}
           severityLabels={severityLabels}
           payload={payload}
+          actionItems={items}
+          actionPanel={panel}
           canUnpublish={canUnpublish}
           onUnpublished={(next) => {
             setPayload(next);
@@ -78,6 +115,8 @@ export function PostmortemPage({ slug, incident, severityLabels, initial, canUnp
           initial={payload}
           autosaveMs={autosaveMs}
           onPublished={setPayload}
+          aside={panel}
+          actionItemCount={items.length}
         />
       )}
     </div>

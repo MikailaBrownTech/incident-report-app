@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { Progress } from "@/features/action-items/schema";
 import type { PersonView } from "@/features/incidents/schema";
 import type { Doc } from "./content";
 import type { TemplateView } from "./sections";
@@ -74,6 +75,8 @@ export interface PostmortemListRow {
   dueAt: string | null;
   publishedAt: string | null;
   author: PersonView | null;
+  /** Done of total action items and how many are overdue; null when there is no postmortem yet. */
+  actionItems: Progress | null;
 }
 
 export interface PostmortemListPage {

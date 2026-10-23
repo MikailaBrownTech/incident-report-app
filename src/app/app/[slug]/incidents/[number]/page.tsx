@@ -3,6 +3,7 @@ import { IncidentDetail } from "@/components/incident-detail";
 import type { SeverityOverrides } from "@/copy";
 import { getIncidentDetail } from "@/features/incidents/detail";
 import { incidentNumberSchema } from "@/features/incidents/schema";
+import { progressBy } from "@/features/action-items/service";
 import { listTemplates, loadRetroRules } from "@/features/postmortems/service";
 import { listServices } from "@/features/services/service";
 import { listTimeline } from "@/features/timeline/queries";
@@ -27,7 +28,11 @@ export default async function IncidentPage({ params, searchParams }: PageProps<"
   ]);
   if (!incident) notFound();
   // The newest entries first; the client reverses them for oldest-first display and pages backwards from here.
-  const postmortem = await ctx.db.postmortem.findFirst({ where: { incidentId: incident.id }, select: { status: true } });
+  const postmortem = await ctx.db.postmortem.findFirst({
+    where: { incidentId: incident.id },
+    select: { status: true },
+  });
+  const progress = (await progressBy(ctx.db, "incidentId", [incident.id])).get(incident.id)!;
   const page = await listTimeline(ctx.db, incident.id, { filter: view.filter, order: "desc", limit: DEFAULT_LIMIT });
 
   return (
@@ -43,6 +48,7 @@ export default async function IncidentPage({ params, searchParams }: PageProps<"
       currentUserId={ctx.user.id}
       timeline={{ page, filter: view.filter, order: view.order }}
       postmortem={{ status: postmortem?.status ?? null, rules, templates }}
+      rituals={progress}
     />
   );
 }

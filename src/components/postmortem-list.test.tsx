@@ -43,6 +43,7 @@ function row(over: Partial<PostmortemListRow> & { number: number }): PostmortemL
     dueAt: null,
     publishedAt: null,
     author: null,
+    actionItems: null,
     ...over,
   };
 }
@@ -100,6 +101,7 @@ describe("the table", () => {
       L.columns.author,
       L.columns.due,
       L.columns.published,
+      L.columns.actionItems,
     ]);
     expect(cell(1, L.columns.incident)).toHaveTextContent("INC-1");
     expect(cell(1, L.columns.incident)).toHaveTextContent("Outage 1");
