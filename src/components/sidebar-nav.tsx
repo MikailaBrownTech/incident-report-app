@@ -31,7 +31,7 @@ export function SidebarNav({ items }: { items: NavItem[] }) {
           >
             {item.label}
             {item.badge ? (
-              <span className="ml-2 rounded-full border border-danger px-2 text-xs text-danger">
+              <span className="ml-2 rounded-tag border border-danger px-2 text-xs text-danger">
                 <span aria-hidden="true">{item.badge}</span>
                 <span className="sr-only">{item.badgeLabel ?? item.badge}</span>
               </span>

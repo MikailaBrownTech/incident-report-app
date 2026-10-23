@@ -103,7 +103,7 @@ function DeclareDialog({
         event.preventDefault();
         onClose();
       }}
-      className="m-auto max-h-[92vh] w-[min(94vw,40rem)] overflow-auto rounded border border-border bg-surface p-5 text-fg backdrop:bg-black/60"
+      className="m-auto max-h-[92vh] w-[min(94vw,40rem)] overflow-auto rounded-pop border shadow-pop border-border bg-surface p-5 text-fg backdrop:bg-ground/70"
     >
       <h2 id="declare-title" className="mb-4 text-xl font-semibold">
         {t.declare.dialogTitle}
@@ -233,7 +233,7 @@ function DeclareForm({
           value={summary}
           onChange={(e) => setSummary(e.target.value)}
           aria-describedby="declare-summary-help"
-          className={`${inputClass} font-mono text-sm`}
+          className={`${inputClass} text-sm`}
         />
         <p id="declare-summary-help" className="mt-1 text-sm text-muted">
           {errors.summary ?? t.declare.summaryHelp}

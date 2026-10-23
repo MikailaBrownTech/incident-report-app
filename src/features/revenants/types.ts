@@ -1,5 +1,8 @@
 import type { MatchStrength } from "./score";
 
+/** Pure and browser-safe: the chains view imports it, so it must not live next to the server queries. */
+export const SORTS = ["recent", "occurrences", "rituals"] as const;
+
 /** What the revenant views show about an incident. Dates are ISO strings. */
 export interface IncidentSummary {
   id: string;

@@ -44,7 +44,7 @@ export default async function ServicePage({ params, searchParams }: PageProps<"/
             {([5, 4, 3, 2, 1] as const).map((level) => (
               <li key={level} className="flex justify-between gap-2">
                 <span>{severityName(t, level as SeverityLevel, labels)}</span>
-                <span className="font-mono">{history.bySeverity[level]}</span>
+                <span>{history.bySeverity[level]}</span>
               </li>
             ))}
           </ul>
@@ -81,7 +81,7 @@ export default async function ServicePage({ params, searchParams }: PageProps<"/
           <ul className="divide-y divide-border rounded border border-border" data-testid="history">
             {history.items.map((i) => (
               <li key={i.id} className="flex flex-wrap items-center gap-2 p-3">
-                <Link href={`/app/${slug}/incidents/${i.number}`} className="font-mono text-sm text-accent underline">
+                <Link href={`/app/${slug}/incidents/${i.number}`} className="text-sm text-accent underline">
                   {t.incident.number(i.number)}
                 </Link>
                 <span className="min-w-0 flex-1 font-medium">{i.title}</span>

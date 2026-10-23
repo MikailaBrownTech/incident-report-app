@@ -534,7 +534,7 @@ function ConflictDialog({
       aria-labelledby="conflict-title"
       aria-describedby="conflict-body"
       onCancel={(e) => e.preventDefault()}
-      className="m-auto w-[min(92vw,28rem)] rounded border border-border bg-surface p-5 text-fg backdrop:bg-black/60"
+      className="m-auto w-[min(92vw,28rem)] rounded-pop border shadow-pop border-border bg-surface p-5 text-fg backdrop:bg-ground/70"
     >
       <h2 id="conflict-title" className="text-lg font-semibold">
         {p.title}

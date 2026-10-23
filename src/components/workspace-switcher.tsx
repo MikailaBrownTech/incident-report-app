@@ -43,7 +43,7 @@ export function WorkspaceSwitcher({ workspaces, currentSlug }: { workspaces: Swi
       {open ? (
         <ul
           id="workspace-list"
-          className="absolute inset-x-0 z-30 mt-1 space-y-1 rounded border border-border bg-surface p-2 shadow-lg"
+          className="absolute inset-x-0 z-30 mt-1 space-y-1 rounded-pop border border-border bg-surface p-2 shadow-pop"
         >
           {workspaces.map((w) => (
             <li key={w.slug}>

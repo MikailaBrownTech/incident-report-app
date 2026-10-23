@@ -8,7 +8,7 @@ import type { PersonView } from "@/features/incidents/schema";
 import { isFiltered, type ItemFilters } from "@/features/action-items/schema";
 
 const chip = (on: boolean) =>
-  `rounded-full border px-3 py-1 text-sm ${on ? "border-accent bg-accent text-accent-fg" : "border-border bg-surface hover:border-accent"}`;
+  `rounded-tag border px-3 py-1 text-sm ${on ? "border-accent bg-accent text-accent-fg" : "border-border bg-surface hover:border-accent"}`;
 
 interface Props {
   filters: ItemFilters;

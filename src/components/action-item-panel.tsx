@@ -52,7 +52,7 @@ export function ActionItemPanel({ slug, item, people, members, canEdit, canDelet
         e.preventDefault();
         onClose();
       }}
-      className="fixed inset-y-0 right-0 left-auto m-0 h-full max-h-none w-[min(100vw,28rem)] border-l border-border bg-surface p-5 text-fg backdrop:bg-black/50"
+      className="fixed inset-y-0 right-0 left-auto m-0 h-full max-h-none w-[min(100vw,28rem)] border-l border-border shadow-pop bg-surface p-5 text-fg backdrop:bg-ground/70"
     >
       {item && (
         <PanelBody

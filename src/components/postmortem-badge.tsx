@@ -29,7 +29,7 @@ export function PostmortemBadge({ state, label }: { state: PostmortemStateKey; l
   return (
     <span
       data-postmortem-state={state}
-      className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-0.5 text-xs ${TONE[state]}`}
+      className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-tag border px-2.5 py-0.5 text-xs ${TONE[state]}`}
     >
       <Icon aria-hidden="true" className="size-3" />
       {label}

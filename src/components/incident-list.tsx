@@ -168,7 +168,7 @@ export function IncidentList({
                 <td
                   role="cell"
                   data-label={t.incidentList.colNumber}
-                  className={`${rt.td} whitespace-nowrap font-mono`}
+                  className={`${rt.td} whitespace-nowrap`}
                 >
                   {t.incident.number(i.number)}
                 </td>
@@ -206,7 +206,7 @@ export function IncidentList({
                 <td
                   role="cell"
                   data-label={t.incidentList.colDuration}
-                  className={`${rt.td} whitespace-nowrap font-mono`}
+                  className={`${rt.td} whitespace-nowrap`}
                 >
                   <LiveDuration startedAt={i.startedAt} resolvedAt={i.resolvedAt} />
                 </td>
@@ -303,7 +303,7 @@ function RowActions({
         <div
           role="menu"
           aria-label={t.incidentList.rowActionsFor(label)}
-          className="absolute right-0 z-30 mt-1 w-52 space-y-0.5 rounded border border-border bg-surface p-1 text-left shadow-lg"
+          className="absolute right-0 z-30 mt-1 w-52 space-y-0.5 rounded-pop border border-border bg-surface p-1 text-left shadow-pop"
         >
           <p role="presentation" className="px-2 py-1 text-xs text-muted">
             {t.incidentList.changeStatus}

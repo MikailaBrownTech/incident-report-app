@@ -151,7 +151,7 @@ export function ServicesManager({
                       {s.name}
                     </Link>
                   </td>
-                  <td role="cell" data-label={t.services.colSlug} className={`${rt.td} font-mono text-muted`}>
+                  <td role="cell" data-label={t.services.colSlug} className={`${rt.td} text-muted`}>
                     {s.slug}
                   </td>
                   <td role="cell" data-label={t.services.colOpen} className={rt.td}>
@@ -249,7 +249,7 @@ function RenameDialog({
         e.preventDefault();
         onClose();
       }}
-      className="m-auto w-[min(92vw,26rem)] rounded border border-border bg-surface p-5 text-fg backdrop:bg-black/60"
+      className="m-auto w-[min(92vw,26rem)] rounded-pop border shadow-pop border-border bg-surface p-5 text-fg backdrop:bg-ground/70"
     >
       {/* keyed by service so the field restarts from the current name each time */}
       {service ? (

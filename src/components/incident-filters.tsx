@@ -22,7 +22,7 @@ interface Props {
 }
 
 const chip = (on: boolean) =>
-  `rounded-full border px-3 py-1 text-sm ${on ? "border-accent bg-accent text-accent-fg" : "border-border bg-surface hover:border-accent"}`;
+  `rounded-tag border px-3 py-1 text-sm ${on ? "border-accent bg-accent text-accent-fg" : "border-border bg-surface hover:border-accent"}`;
 
 /** Every control writes to the URL, so a filtered list can be shared, bookmarked and survives a reload. */
 export function IncidentFilters({ params, services, severityLabels }: Props) {
@@ -174,7 +174,7 @@ export function IncidentFilters({ params, services, severityLabels }: Props) {
             {t.incidentList.serviceFilter}
             {params.serviceIds.length > 0 ? ` (${params.serviceIds.length})` : ""}
           </summary>
-          <div className="absolute z-30 mt-1 max-h-60 w-64 overflow-auto rounded border border-border bg-surface p-2 shadow-lg">
+          <div className="absolute z-30 mt-1 max-h-60 w-64 overflow-auto rounded-pop border border-border bg-surface p-2 shadow-pop">
             {services.length === 0 ? (
               <p className="px-1 py-1 text-sm text-muted">{t.incidentList.noServicesYet}</p>
             ) : (

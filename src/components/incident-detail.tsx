@@ -218,7 +218,7 @@ export function IncidentDetail({
         </Link>
 
         <header className="space-y-3">
-          <p className="font-mono text-sm text-muted">{label}</p>
+          <p className="text-sm text-muted">{label}</p>
           {editingTitle ? (
             <form onSubmit={submitTitle} noValidate className="space-y-2">
               <label htmlFor="incident-title" className="sr-only">
@@ -344,7 +344,7 @@ export function IncidentDetail({
                 }}
                 aria-describedby="incident-summary-hint"
                 aria-invalid={Boolean(summaryError)}
-                className={`${inputClass} font-mono text-sm`}
+                className={`${inputClass} text-sm`}
               />
               <p id="incident-summary-hint" className={`text-sm ${summaryError ? "text-danger" : "text-muted"}`}>
                 {summaryError ?? t.incidentDetail.markdownHint}
@@ -470,7 +470,7 @@ export function IncidentDetail({
             ) : null}
             <div>
               <dt className="text-xs text-muted">{t.incidentDetail.durationLabel}</dt>
-              <dd className="font-mono">
+              <dd>
                 <LiveDuration startedAt={incident.startedAt} resolvedAt={incident.resolvedAt} />
               </dd>
             </div>

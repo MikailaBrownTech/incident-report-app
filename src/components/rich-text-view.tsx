@@ -12,7 +12,7 @@ function marked(node: DocNode, key: number): ReactNode {
     if (mark.type === "bold") out = <strong>{out}</strong>;
     else if (mark.type === "italic") out = <em>{out}</em>;
     else if (mark.type === "code")
-      out = <code className="rounded bg-surface px-1 py-0.5 font-mono text-[0.9em]">{out}</code>;
+      out = <code className="rounded bg-surface px-1 py-0.5 font-mono text-xs">{out}</code>;
     else if (mark.type === "link" && isSafeHref(mark.attrs?.href)) {
       out = (
         <a href={mark.attrs.href} target="_blank" rel="noopener noreferrer nofollow" className="text-accent underline">

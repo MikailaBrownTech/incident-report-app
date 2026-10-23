@@ -14,8 +14,7 @@ import { emptyMessage, severityName, type SeverityLevel, type SeverityOverrides 
 import { useCopy } from "@/copy/provider";
 import type { PostmortemStateKey } from "@/copy/types";
 import type { ChainListParams } from "@/features/revenants/recurring";
-import { SORTS } from "@/features/revenants/recurring";
-import type { ChainRow, Suspect } from "@/features/revenants/types";
+import { SORTS, type ChainRow, type Suspect } from "@/features/revenants/types";
 import { api } from "@/lib/api-client";
 import { formatDuration } from "@/lib/time";
 
@@ -33,7 +32,7 @@ interface Props {
 }
 
 const chip = (on: boolean) =>
-  `rounded-full border px-3 py-1 text-sm ${on ? "border-accent bg-accent text-accent-fg" : "border-border bg-surface hover:border-accent"}`;
+  `rounded-tag border px-3 py-1 text-sm ${on ? "border-accent bg-accent text-accent-fg" : "border-border bg-surface hover:border-accent"}`;
 
 export function RevenantsView(props: Props) {
   const t = useCopy();
@@ -78,7 +77,7 @@ export function RevenantsView(props: Props) {
             role="tab"
             aria-selected={props.view === v}
             onClick={() => update({ view: v === "chains" ? null : v })}
-            className={`rounded-t border-b-2 px-3 py-2 text-sm ${props.view === v ? "border-accent font-semibold" : "border-transparent text-muted"}`}
+            className={`rounded-t-control border-b-2 px-3 py-2 text-sm ${props.view === v ? "border-accent font-semibold" : "border-transparent text-muted"}`}
           >
             {v === "chains" ? p.tabChains : p.tabSuspects}
           </button>
@@ -297,7 +296,7 @@ function ChainRowView({
             onClick={onToggle}
             className="text-left font-medium hover:underline"
           >
-            <span className="mr-2 font-mono text-muted">{t.incident.number(r.root.number)}</span>
+            <span className="mr-2 text-muted">{t.incident.number(r.root.number)}</span>
             {r.root.title}
           </button>
         </td>
@@ -313,7 +312,7 @@ function ChainRowView({
         <td role="cell" data-label={c.services} className={rt.td}>
           {r.services.map((s) => s.name).join(", ") || "-"}
         </td>
-        <td role="cell" data-label={c.time} className={`${rt.td} whitespace-nowrap font-mono`}>
+        <td role="cell" data-label={c.time} className={`${rt.td} whitespace-nowrap`}>
           {formatDuration(r.totalDurationMs)}
         </td>
         <td role="cell" data-label={c.severity} className={rt.td}>
@@ -338,7 +337,7 @@ function ChainRowView({
             <ol className="space-y-1 text-sm">
               {r.members.map((m) => (
                 <li key={m.id} className="flex flex-wrap items-center gap-2">
-                  <Link href={`/app/${slug}/incidents/${m.number}`} className="font-mono text-accent underline">
+                  <Link href={`/app/${slug}/incidents/${m.number}`} className="text-accent underline">
                     {t.incident.number(m.number)}
                   </Link>
                   <span>{m.title}</span>
@@ -417,7 +416,7 @@ function SuspectsList({
               className="space-y-2 rounded border border-border p-3"
             >
               <div className="flex flex-wrap items-center gap-2">
-                <Link href={`/app/${slug}/incidents/${s.incident.number}`} className="font-mono text-accent underline">
+                <Link href={`/app/${slug}/incidents/${s.incident.number}`} className="text-accent underline">
                   {t.incident.number(s.incident.number)}
                 </Link>
                 <span className="font-medium">{s.incident.title}</span>
@@ -427,7 +426,7 @@ function SuspectsList({
                 />
               </div>
               <p className="text-sm">
-                <Link href={`/app/${slug}/incidents/${s.target.number}`} className="font-mono text-accent underline">
+                <Link href={`/app/${slug}/incidents/${s.target.number}`} className="text-accent underline">
                   {t.incident.number(s.target.number)}
                 </Link>{" "}
                 {s.target.title}

@@ -9,7 +9,7 @@ import { LIST_SORTS, LIST_STATES, isFiltered, type PostmortemListParams } from "
 
 const SEVERITIES = [1, 2, 3, 4, 5] as const;
 const chip = (on: boolean) =>
-  `rounded-full border px-3 py-1 text-sm ${on ? "border-accent bg-accent text-accent-fg" : "border-border bg-surface hover:border-accent"}`;
+  `rounded-tag border px-3 py-1 text-sm ${on ? "border-accent bg-accent text-accent-fg" : "border-border bg-surface hover:border-accent"}`;
 
 /** Every control writes to the URL, so a filtered list can be shared and survives a reload. */
 export function PostmortemFilters({

@@ -79,7 +79,7 @@ export function AddItemForm({ slug, incidentNumber, members, currentUserId, onCr
       type="button"
       aria-pressed={due === key}
       onClick={() => setDue(key)}
-      className={`rounded-full border px-3 py-1 text-sm ${due === key ? "border-accent bg-accent text-accent-fg" : "border-border bg-surface hover:border-accent"}`}
+      className={`rounded-tag border px-3 py-1 text-sm ${due === key ? "border-accent bg-accent text-accent-fg" : "border-border bg-surface hover:border-accent"}`}
     >
       {label}
     </button>

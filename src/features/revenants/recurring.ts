@@ -5,11 +5,10 @@ import { getPostmortemStatus } from "@/features/postmortems/status";
 import type { ScopedDb } from "@/server/db/tenant";
 import { summarize } from "./candidates";
 import { LOOKBACK_DAYS, STRONG_SCORE, SUSPECT_LIMIT, jaccard, scorePair, titleSimilarity } from "./score";
-import type { ChainMember, ChainRow, Suspect } from "./types";
+import { SORTS, type ChainMember, type ChainRow, type Suspect } from "./types";
 
 const DAY = 86_400_000;
 
-export const SORTS = ["recent", "occurrences", "rituals"] as const;
 export const PAGE_SIZE = 25;
 export const MAX_PAGE_SIZE = 100;
 

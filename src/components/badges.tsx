@@ -2,19 +2,19 @@ import { AlertTriangle, CircleDot } from "lucide-react";
 import type { SeverityLevel } from "@/copy";
 
 const SEVERITY_TONE: Record<SeverityLevel, string> = {
-  1: "border-border text-muted",
-  2: "border-success text-success",
-  3: "border-warning text-warning",
-  4: "border-danger text-danger",
-  5: "border-danger bg-danger text-bg font-semibold",
+  1: "border-sev-1 text-fg [&>svg]:text-sev-1",
+  2: "border-sev-2 text-fg [&>svg]:text-sev-2",
+  3: "border-sev-3 text-fg [&>svg]:text-sev-3",
+  4: "border-sev-4 text-fg [&>svg]:text-sev-4",
+  5: "border-sev-5 border-2 text-fg font-semibold [&>svg]:text-sev-5",
 };
 
-/** Level is always spelled out as text (and a dot count), never colour alone. */
+/** Level is always spelled out as text (and a dot count), never colour alone: the border and icon carry the colour. */
 export function SeverityBadge({ level, label }: { level: SeverityLevel; label: string }) {
   return (
     <span
       data-severity={level}
-      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs ${SEVERITY_TONE[level]}`}
+      className={`inline-flex items-center gap-1.5 rounded-tag border px-2.5 py-0.5 text-xs ${SEVERITY_TONE[level]}`}
     >
       <CircleDot aria-hidden="true" className="size-3" />
       {label}

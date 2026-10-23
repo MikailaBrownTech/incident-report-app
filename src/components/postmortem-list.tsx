@@ -119,7 +119,7 @@ export function PostmortemList({ slug, initial, initialCursor, queryString, hasF
                 >
                   <td role="cell" data-label={l.columns.incident} className={`${rt.td} min-w-56`}>
                     <Link href={href} className="font-medium hover:text-accent hover:underline">
-                      <span className="mr-2 font-mono text-muted">{t.incident.number(r.number)}</span>
+                      <span className="mr-2 text-muted">{t.incident.number(r.number)}</span>
                       {r.title}
                     </Link>
                   </td>

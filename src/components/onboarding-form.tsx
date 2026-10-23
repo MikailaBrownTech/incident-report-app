@@ -107,7 +107,7 @@ export function OnboardingForm() {
           }}
           aria-invalid={Boolean(errors.slug)}
           aria-describedby={errors.slug ? "slug-error" : "slug-help"}
-          className={`${inputClass} font-mono`}
+          className={inputClass}
         />
         {errors.slug ? (
           <p id="slug-error" className="mt-1 text-sm text-danger">

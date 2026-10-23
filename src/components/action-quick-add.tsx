@@ -64,7 +64,7 @@ export function ActionQuickAdd({ slug, incidents, members, currentUserId, onCrea
           e.preventDefault();
           close();
         }}
-        className="m-auto w-[min(92vw,30rem)] rounded border border-border bg-surface p-5 text-fg backdrop:bg-black/60"
+        className="m-auto w-[min(92vw,30rem)] rounded-pop border shadow-pop border-border bg-surface p-5 text-fg backdrop:bg-ground/70"
       >
         <h2 id="quick-add-title" className="text-lg font-semibold">
           {r.board.quickAddTitle}
@@ -113,7 +113,7 @@ export function ActionQuickAdd({ slug, incidents, members, currentUserId, onCrea
                       onClick={() => setChosen(i)}
                       className="flex w-full items-center gap-2 rounded border border-border px-3 py-2 text-left hover:border-accent"
                     >
-                      <span className="font-mono text-sm">{t.incident.number(i.number)}</span>
+                      <span className="text-sm">{t.incident.number(i.number)}</span>
                       <span className="truncate">{i.title}</span>
                     </button>
                   </li>

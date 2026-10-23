@@ -207,7 +207,7 @@ function RecurrenceCard({
             className={`space-y-1 rounded border p-2 ${m.id === incident.id ? "border-accent bg-bg" : "border-border"}`}
           >
             <div className="flex flex-wrap items-center gap-2">
-              <Link href={`/app/${slug}/incidents/${m.number}`} className="font-mono text-sm text-accent underline">
+              <Link href={`/app/${slug}/incidents/${m.number}`} className="text-sm text-accent underline">
                 {t.incident.number(m.number)}
               </Link>
               <SeverityBadge
@@ -373,7 +373,7 @@ function LinkAnother({ slug, root, memberIds }: { slug: string; root: { number: 
                   onClick={() => void attach(i.number)}
                   className="flex w-full items-center gap-2 rounded border border-border px-2 py-1.5 text-left text-sm hover:border-accent"
                 >
-                  <span className="font-mono">{t.incident.number(i.number)}</span>
+                  <span>{t.incident.number(i.number)}</span>
                   <span className="truncate">{i.title}</span>
                 </button>
               </li>

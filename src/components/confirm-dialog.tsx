@@ -39,7 +39,7 @@ export function ConfirmDialog({ open, title, body, confirmLabel, pending, onConf
         event.preventDefault();
         if (!pending) onCancel();
       }}
-      className="m-auto w-[min(92vw,26rem)] rounded border border-border bg-surface p-5 text-fg backdrop:bg-black/60"
+      className="m-auto w-[min(92vw,26rem)] rounded-pop border shadow-pop border-border bg-surface p-5 text-fg backdrop:bg-ground/70"
     >
       <h2 id={titleId} className="text-lg font-semibold">
         {title}

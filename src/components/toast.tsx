@@ -40,7 +40,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
           <div
             key={item.id}
             role={item.kind === "error" ? "alert" : "status"}
-            className={`pointer-events-auto w-full rounded border bg-surface px-4 py-3 text-sm shadow-lg ${
+            className={`pointer-events-auto w-full rounded-pop border bg-surface px-4 py-3 text-sm shadow-pop ${
               item.kind === "error" ? "border-danger text-danger" : "border-success text-success"
             }`}
           >

@@ -1,19 +1,23 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { IBM_Plex_Sans, IM_Fell_English } from "next/font/google";
 import { ToastProvider } from "@/components/toast";
 import { CopyProvider } from "@/copy/provider";
 import { getCopy } from "@/copy";
 import { getSkin } from "@/lib/skin";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const plex = IBM_Plex_Sans({
+  variable: "--font-plex",
   subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  display: "swap",
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const fell = IM_Fell_English({
+  variable: "--font-fell",
   subsets: ["latin"],
+  weight: "400",
+  display: "swap",
 });
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -24,11 +28,7 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function RootLayout({ children }: LayoutProps<"/">) {
   const skin = await getSkin();
   return (
-    <html
-      lang="en"
-      data-skin={skin}
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-    >
+    <html lang="en" data-skin={skin} className={`${plex.variable} ${fell.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col font-sans">
         <CopyProvider skin={skin}>
           <ToastProvider>{children}</ToastProvider>

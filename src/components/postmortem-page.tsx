@@ -75,7 +75,7 @@ export function PostmortemPage({
     <div className="space-y-5">
       <header className="space-y-3 rounded border border-border bg-surface p-4">
         <div className="flex flex-wrap items-center gap-2 text-sm text-muted">
-          <span className="font-mono">{t.incident.number(incident.number)}</span>
+          <span>{t.incident.number(incident.number)}</span>
           <PostmortemBadge
             state={published ? "PUBLISHED" : "DRAFT"}
             label={published ? t.postmortem.published : t.postmortem.draft}

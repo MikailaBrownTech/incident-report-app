@@ -2,34 +2,67 @@
 
 /* Skin tokens. Keep in sync with src/styles/tokens.ts (tokens.test.ts enforces it). */
 [data-skin="haunted"] {
-  --bg: #0d0b14;
-  --surface: #171326;
-  --fg: #e8e4f3;
-  --muted: #b3abc9;
-  --accent: #c9a0ff;
-  --accent-fg: #150f24;
-  --danger: #ff8a8a;
-  --success: #7fe0a8;
-  --warning: #ffc66b;
-  --border: #6b5f8a;
+  --ground: #17231f;
+  --surface: #1e2d28;
+  --raised: #26382f;
+  --rule: #34493f;
+  --text: #e8e2d0;
+  --text-muted: #9aa79f;
+  --accent: #e3a857;
+  --accent-text: #17231f;
+  --ok: #5fa391;
+  --warn: #e3a857;
+  --danger: #ee6c4f;
+  --sev-1: #8fa3a8;
+  --sev-2: #5fa391;
+  --sev-3: #e3a857;
+  --sev-4: #e2723a;
+  --sev-5: #d9433f;
+  --display-font: var(--font-fell), "Libre Caslon Text", Georgia, serif;
+  --display-tracking: 0;
+  --pop-shadow: 0 8px 24px rgb(10 18 15 / 0.55);
 }
 
 [data-skin="professional"] {
-  --bg: #ffffff;
-  --surface: #f4f5f7;
-  --fg: #1a1d23;
-  --muted: #4b5361;
-  --accent: #2f4fd0;
-  --accent-fg: #ffffff;
-  --danger: #b42318;
-  --success: #157347;
-  --warning: #8a5a00;
-  --border: #7d8594;
+  --ground: #f6f7f5;
+  --surface: #ffffff;
+  --raised: #edf0ed;
+  --rule: #d6dcd8;
+  --text: #1b2420;
+  --text-muted: #566660;
+  --accent: #1f6f5c;
+  --accent-text: #ffffff;
+  --ok: #1f6f5c;
+  --warn: #9a6300;
+  --danger: #b5301f;
+  --sev-1: #5c7a82;
+  --sev-2: #2e8068;
+  --sev-3: #b07a1a;
+  --sev-4: #c2531a;
+  --sev-5: #a82a2a;
+  --display-font: var(--font-plex), system-ui, sans-serif;
+  --display-tracking: -0.015em;
+  --pop-shadow: 0 8px 24px rgb(27 36 32 / 0.16);
+}
+
+/* Older token names stay as aliases so existing utilities keep working. `field` is the border of inputs: it must reach 3:1. */
+[data-skin] {
+  --bg: var(--ground);
+  --fg: var(--text);
+  --muted: var(--text-muted);
+  --border: var(--rule);
+  --field: var(--text-muted);
+  --success: var(--ok);
+  --warning: var(--warn);
+  --accent-fg: var(--accent-text);
 }
 
 @theme inline {
+  --color-ground: var(--ground);
   --color-bg: var(--bg);
   --color-surface: var(--surface);
+  --color-raised: var(--raised);
+  --color-rule: var(--rule);
   --color-fg: var(--fg);
   --color-muted: var(--muted);
   --color-accent: var(--accent);
@@ -38,13 +71,71 @@
   --color-success: var(--success);
   --color-warning: var(--warning);
   --color-border: var(--border);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-field: var(--field);
+  --color-sev-1: var(--sev-1);
+  --color-sev-2: var(--sev-2);
+  --color-sev-3: var(--sev-3);
+  --color-sev-4: var(--sev-4);
+  --color-sev-5: var(--sev-5);
+  --font-sans: var(--font-plex), system-ui, sans-serif;
+  --font-display: var(--display-font);
+  --font-mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
+
+  /* Type scale: 12, 14, 16, 20, 25, 31. */
+  --font-weight-bold: 600;
+  --text-*: initial;
+  --text-xs: 12px;
+  --text-xs--line-height: 16px;
+  --text-sm: 14px;
+  --text-sm--line-height: 22px;
+  --text-table: 13px;
+  --text-table--line-height: 20px;
+  --text-base: 16px;
+  --text-base--line-height: 24px;
+  --text-lg: 20px;
+  --text-lg--line-height: 28px;
+  --text-xl: 25px;
+  --text-xl--line-height: 32px;
+  --text-2xl: 31px;
+  --text-2xl--line-height: 38px;
+  --text-3xl: 31px;
+  --text-3xl--line-height: 38px;
+  --text-4xl: 31px;
+  --text-4xl--line-height: 38px;
+
+  /* Radii by role: tags/badges/pills 2px, buttons/inputs 6px, menus/dialogs/popovers 10px. */
+  --radius: 6px;
+  --radius-tag: 2px;
+  --radius-control: 6px;
+  --radius-pop: 10px;
+  --shadow-pop: var(--pop-shadow);
 }
 
 body {
-  background: var(--bg);
-  color: var(--fg);
+  background: var(--ground);
+  color: var(--text);
+  font-size: 14px;
+  line-height: 22px;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Page titles: the display face at 28px and up only. */
+h1 {
+  font-family: var(--display-font);
+  font-size: 31px;
+  line-height: 38px;
+  font-weight: 600;
+  letter-spacing: var(--display-tracking);
+}
+[data-skin="haunted"] h1 {
+  font-weight: 400;
+}
+
+input,
+select,
+textarea {
+  border-color: var(--field);
 }
 
 :focus-visible {
@@ -52,7 +143,7 @@ body {
   outline-offset: 2px;
 }
 
-/* Fog: decorative only, never intercepts input, hidden in the professional skin. */
+/* Fog: decorative only, never intercepts input, hidden in the professional skin. No fill: the decorative gradients are gone. */
 .fog {
   display: none;
 }
@@ -64,13 +155,6 @@ body {
   z-index: 0;
   overflow: hidden;
   pointer-events: none;
-  background:
-    radial-gradient(60% 40% at 20% 85%, rgb(201 160 255 / 0.1), transparent 70%),
-    radial-gradient(50% 35% at 80% 90%, rgb(127 224 168 / 0.06), transparent 70%);
-}
-
-[data-skin="haunted"] .flicker {
-  text-shadow: 0 0 12px rgb(201 160 255 / 0.45);
 }
 
 /* All motion is opt-in; users who ask for reduced motion get a static page. */
@@ -98,16 +182,17 @@ body {
 @media print {
   [data-skin="haunted"],
   [data-skin="professional"] {
-    --bg: #ffffff;
+    --ground: #ffffff;
     --surface: #ffffff;
-    --fg: #000000;
-    --muted: #333333;
+    --raised: #ffffff;
+    --rule: #888888;
+    --text: #000000;
+    --text-muted: #333333;
     --accent: #1a1a1a;
-    --accent-fg: #ffffff;
+    --accent-text: #ffffff;
+    --ok: #000000;
+    --warn: #000000;
     --danger: #000000;
-    --success: #000000;
-    --warning: #000000;
-    --border: #888888;
   }
   .fog {
     display: none !important;

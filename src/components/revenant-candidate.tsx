@@ -32,14 +32,14 @@ export function RevenantCandidateRow({ slug, candidate, severityLabels, onLink, 
       className="space-y-2 rounded border border-border p-3"
     >
       <div className="flex flex-wrap items-center gap-2">
-        <Link href={`/app/${slug}/incidents/${c.incident.number}`} className="font-mono text-sm text-accent underline">
+        <Link href={`/app/${slug}/incidents/${c.incident.number}`} className="text-sm text-accent underline">
           {label}
         </Link>
         <SeverityBadge
           level={c.incident.severity as SeverityLevel}
           label={severityName(t, c.incident.severity as SeverityLevel, severityLabels)}
         />
-        <span className="rounded-full border border-border px-2 py-0.5 text-xs">{r.strength[c.strength]}</span>
+        <span className="rounded-tag border border-border px-2 py-0.5 text-xs">{r.strength[c.strength]}</span>
       </div>
       <p className="font-medium">{c.incident.title}</p>
       <p className="text-xs text-muted">

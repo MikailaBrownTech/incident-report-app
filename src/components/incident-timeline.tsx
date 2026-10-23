@@ -409,7 +409,7 @@ export function IncidentTimeline(props: Props) {
             type="button"
             aria-pressed={filter === f}
             onClick={() => chooseFilter(f)}
-            className={`rounded-full border px-3 py-1 text-sm ${
+            className={`rounded-tag border px-3 py-1 text-sm ${
               filter === f ? "border-accent bg-accent text-accent-fg" : "border-border bg-surface hover:border-accent"
             }`}
           >
@@ -436,7 +436,7 @@ export function IncidentTimeline(props: Props) {
           {order === "asc" ? earlierButton : laterButton}
           {groups.map((group) => (
             <div key={group.label} className="space-y-1">
-              <h3 className="sticky top-0 z-[1] bg-bg/90 py-1 text-xs font-semibold uppercase tracking-wide text-muted">
+              <h3 className="sticky top-0 z-[1] bg-bg/90 py-1 text-xs font-semibold text-muted">
                 {group.label}
               </h3>
               <ol className="space-y-2">
@@ -549,7 +549,7 @@ function TimelineEntry(p: EntryProps) {
       <div className="flex gap-3">
         <span
           aria-hidden="true"
-          className={`mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full border ${
+          className={`mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-tag border ${
             e.isKeyMoment ? "border-warning text-warning" : "border-border text-muted"
           }`}
         >
@@ -560,7 +560,7 @@ function TimelineEntry(p: EntryProps) {
             {showAvatar ? <Avatar name={person?.name || person?.email || "?"} image={person?.image ?? null} /> : null}
             <span className="font-medium">{actor}</span>
             {e.isKeyMoment ? (
-              <span className="inline-flex items-center gap-1 rounded-full border border-warning px-2 text-xs text-warning">
+              <span className="inline-flex items-center gap-1 rounded-tag border border-warning px-2 text-xs text-warning">
                 <Star className="size-3" aria-hidden="true" />
                 {t.timeline.keyMoment}
               </span>
@@ -569,7 +569,7 @@ function TimelineEntry(p: EntryProps) {
               <RelativeTime iso={e.occurredAt} />
             </span>
             <span
-              className="font-mono text-xs text-muted"
+              className="text-xs text-muted"
               aria-label={
                 offset.before
                   ? t.timeline.beforeStartOffset(offset.text.slice(1))
@@ -680,7 +680,7 @@ function EditForm({
           if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) void submit(e);
         }}
         aria-invalid={Boolean(error)}
-        className={`${inputClass} font-mono text-sm`}
+        className={`${inputClass} text-sm`}
       />
       <div className="flex flex-wrap items-center gap-3">
         <label className="flex items-center gap-2 text-sm">
@@ -780,7 +780,7 @@ function Composer({
         e.preventDefault();
         void submit();
       }}
-      className="sticky bottom-0 z-10 space-y-2 rounded border border-border bg-surface p-3 shadow-lg"
+      className="sticky bottom-0 z-10 space-y-2 rounded border border-border bg-surface p-3"
     >
       <label htmlFor="timeline-composer" className="sr-only">
         {t.timeline.composerLabel}
@@ -798,7 +798,7 @@ function Composer({
             void submit();
           }
         }}
-        className={`${inputClass} font-mono text-sm`}
+        className={`${inputClass} text-sm`}
       />
       {body.length >= NOTE_MAX - 500 ? (
         <p

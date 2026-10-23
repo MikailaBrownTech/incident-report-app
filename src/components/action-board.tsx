@@ -458,7 +458,7 @@ export function ActionBoard({
                 aria-selected={tab === s}
                 aria-controls={`column-${s}`}
                 onClick={() => setTab(s)}
-                className={`shrink-0 rounded-full border px-3 py-1 text-sm ${tab === s ? "border-accent bg-accent text-accent-fg" : "border-border bg-surface"}`}
+                className={`shrink-0 rounded-tag border px-3 py-1 text-sm ${tab === s ? "border-accent bg-accent text-accent-fg" : "border-border bg-surface"}`}
               >
                 {`${r.statusLabel[s]} (${board.counts[s]})`}
               </button>

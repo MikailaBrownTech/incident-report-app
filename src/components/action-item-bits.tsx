@@ -80,11 +80,11 @@ export function OwnerChip({ person, small = false }: { person: PersonView | unde
 }
 
 const SEVERITY_BORDER: Record<number, string> = {
-  1: "border-border text-muted",
-  2: "border-success text-success",
-  3: "border-warning text-warning",
-  4: "border-danger text-danger",
-  5: "border-danger bg-danger text-bg",
+  1: "border-sev-1 text-fg",
+  2: "border-sev-2 text-fg",
+  3: "border-sev-3 text-fg",
+  4: "border-sev-4 text-fg",
+  5: "border-sev-5 border-2 text-fg font-semibold",
 };
 
 /** INC-42, linking to the incident, tinted by severity (the number is the text, so colour is never the only cue). */
@@ -101,7 +101,7 @@ export function IncidentChip({
       href={`/app/${slug}/incidents/${incident.number}`}
       title={incident.title}
       data-severity={incident.severity}
-      className={`inline-block rounded-full border px-2 py-0.5 font-mono text-xs hover:underline ${SEVERITY_BORDER[incident.severity] ?? SEVERITY_BORDER[1]}`}
+      className={`inline-block rounded-tag border px-2 py-0.5 text-xs hover:underline ${SEVERITY_BORDER[incident.severity] ?? SEVERITY_BORDER[1]}`}
     >
       {t.incident.number(incident.number)}
     </Link>
@@ -187,7 +187,7 @@ export function ReasonDialog({
         e.preventDefault();
         onCancel();
       }}
-      className="m-auto w-[min(92vw,26rem)] rounded border border-border bg-surface p-5 text-fg backdrop:bg-black/60"
+      className="m-auto w-[min(92vw,26rem)] rounded-pop border shadow-pop border-border bg-surface p-5 text-fg backdrop:bg-ground/70"
     >
       <form
         onSubmit={(e) => {

@@ -37,9 +37,9 @@ export function ActionCard(props: Props) {
       data-testid={`card-${item.id}`}
       data-state={state}
       style={overlay ? undefined : { transform: CSS.Transform.toString(transform), transition }}
-      className={`space-y-2 rounded border bg-surface p-3 shadow-sm ${state === "OVERDUE" ? "border-danger" : "border-border"} ${
+      className={`space-y-2 rounded border bg-surface p-3 ${state === "OVERDUE" ? "border-danger" : "border-border"} ${
         isDragging ? "opacity-40" : ""
-      } ${overlay ? "shadow-lg" : ""}`}
+      } ${overlay ? "shadow-pop" : ""}`}
     >
       <div className="flex items-start gap-2">
         <button

@@ -11,7 +11,7 @@ export default async function NotFound() {
     <main className="relative isolate flex flex-1 flex-col items-center justify-center gap-4 p-6 text-center">
       <Fog />
       <div className="relative z-10 space-y-4">
-        <p className="font-mono text-sm text-muted">{"404"}</p>
+        <p className="text-sm text-muted">{"404"}</p>
         <h1 className="flicker text-3xl font-bold">{t.errors.notFound}</h1>
         <Link href="/app" className={`${primaryButton} inline-block`}>
           {t.invite.backHome}

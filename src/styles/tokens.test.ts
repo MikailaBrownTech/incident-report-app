@@ -7,8 +7,7 @@ import { contrastPairs, skinTokens, type TokenName } from "./tokens";
 // Normalise CRLF: a Windows checkout converts line endings, and the regexes below expect LF.
 const css = readFileSync(join(process.cwd(), "src/app/globals.css"), "utf8").replaceAll("\r\n", "\n");
 
-const cssVar = (name: TokenName) =>
-  name.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`);
+const cssVar = (name: TokenName) => name.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`).replace(/(\d)/, "-$1");
 
 function cssBlock(skin: string): string {
   const m = new RegExp(`\\[data-skin="${skin}"\\]\\s*\\{([^}]*)\\}`).exec(css);

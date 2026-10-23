@@ -26,7 +26,7 @@ const heading = (Tag: "h3" | "h4" | "h5") =>
 export function Markdown({ source, className = "" }: { source: string; className?: string }) {
   return (
     <div
-      className={`break-words [&_blockquote]:border-l-2 [&_blockquote]:border-border [&_blockquote]:pl-3 [&_blockquote]:text-muted [&_code]:rounded [&_code]:bg-bg [&_code]:px-1 [&_code]:font-mono [&_code]:text-[0.9em] [&_ol]:mb-3 [&_ol]:list-decimal [&_ol]:pl-6 [&_p]:mb-3 [&_pre]:mb-3 [&_pre]:overflow-auto [&_pre]:rounded [&_pre]:bg-bg [&_pre]:p-3 [&_pre_code]:bg-transparent [&_ul]:mb-3 [&_ul]:list-disc [&_ul]:pl-6 ${className}`}
+      className={`max-w-prose break-words [&_blockquote]:border-l-2 [&_blockquote]:border-border [&_blockquote]:pl-3 [&_blockquote]:text-muted [&_code]:rounded [&_code]:bg-bg [&_code]:px-1 [&_code]:font-mono [&_code]:text-[0.9em] [&_ol]:mb-3 [&_ol]:list-decimal [&_ol]:pl-6 [&_p]:mb-3 [&_pre]:mb-3 [&_pre]:overflow-auto [&_pre]:rounded [&_pre]:bg-bg [&_pre]:p-3 [&_pre_code]:bg-transparent [&_ul]:mb-3 [&_ul]:list-disc [&_ul]:pl-6 ${className}`}
     >
       <ReactMarkdown
         skipHtml

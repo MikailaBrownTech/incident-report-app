@@ -74,13 +74,13 @@ export function ServicePicker({ services, selectedIds, newNames, canCreate, onCh
           {chips.map((chip) => (
             <li
               key={chip.key}
-              className="flex items-center gap-1 rounded-full border border-border bg-surface py-0.5 pl-2.5 pr-1 text-sm"
+              className="flex items-center gap-1 rounded-tag border border-border bg-surface py-0.5 pl-2.5 pr-1 text-sm"
             >
               <span>{chip.name}</span>
               <button
                 type="button"
                 aria-label={t.declare.removeService(chip.name)}
-                className="rounded-full px-1.5 text-muted hover:text-danger"
+                className="rounded-tag px-1.5 text-muted hover:text-danger"
                 onClick={() =>
                   onChange(
                     chip.isNew
@@ -149,7 +149,7 @@ export function ServicePicker({ services, selectedIds, newNames, canCreate, onCh
           role="listbox"
           aria-multiselectable="true"
           aria-label={t.declare.servicesLabel}
-          className="absolute inset-x-0 z-40 mt-1 max-h-48 overflow-auto rounded border border-border bg-surface p-1 shadow-lg"
+          className="absolute inset-x-0 z-40 mt-1 max-h-48 overflow-auto rounded-pop border border-border bg-surface p-1 shadow-pop"
         >
           {options.length === 0 ? (
             <li className="px-2 py-1.5 text-sm text-muted">{t.declare.servicesNoMatch}</li>
