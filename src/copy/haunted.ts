@@ -510,6 +510,26 @@ export const haunted = {
       if (m < 60) return `${Math.round(m)} min`;
       return `${(m / 60).toFixed(1)} h`;
     },
+    rangeLabel: "Time range",
+    ranges: { "7d": "Last 7 days", "30d": "Last 30 days", "90d": "Last 90 days", all: "All time" },
+    rangePhrase: { "7d": "the last 7 days", "30d": "the last 30 days", "90d": "the last 90 days", all: "all time" },
+    incidentsInRange: "Hauntings in range",
+    openNow: "Active now",
+    overTime: "Hauntings over time",
+    bySeverity: "Hauntings by dread level",
+    needsAttention: "Needs attention",
+    noneOpen: "Nothing is haunting you right now.",
+    emptyWindow: (phrase, older) =>
+      older > 0
+        ? `No hauntings in ${phrase}. ${older} older ${older === 1 ? "haunting" : "hauntings"} exist: pick a wider range to see ${older === 1 ? "it" : "them"}.`
+        : `No hauntings in ${phrase}.`,
+    emptyAll: "No hauntings yet. Declare one when something goes bump.",
+    chartBar: (label, count) => `${label}: ${count}`,
+    chartTableCaption: "The numbers behind the charts",
+    chartColPeriod: "Period",
+    chartColCount: "Count",
+    seeAll: "See all hauntings",
+    weekOf: (date) => `Week of ${date}`,
   },
   settings: {
     heading: "Settings",

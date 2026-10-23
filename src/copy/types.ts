@@ -386,6 +386,25 @@ export interface CopyDictionary {
     mttr: string;
     incidentsPerMonth: string;
     mttrValue: (minutes: number | null) => string;
+    rangeLabel: string;
+    ranges: Record<"7d" | "30d" | "90d" | "all", string>;
+    /** "the last 30 days", for sentences. */
+    rangePhrase: Record<"7d" | "30d" | "90d" | "all", string>;
+    incidentsInRange: string;
+    openNow: string;
+    overTime: string;
+    bySeverity: string;
+    needsAttention: string;
+    noneOpen: string;
+    /** Why the window is empty: names the window and says whether older incidents exist. */
+    emptyWindow: (phrase: string, olderCount: number) => string;
+    emptyAll: string;
+    chartBar: (label: string, count: number) => string;
+    chartTableCaption: string;
+    chartColPeriod: string;
+    chartColCount: string;
+    seeAll: string;
+    weekOf: (date: string) => string;
   };
   settings: {
     heading: string;

@@ -502,6 +502,26 @@ export const professional = {
       if (m < 60) return `${Math.round(m)} min`;
       return `${(m / 60).toFixed(1)} h`;
     },
+    rangeLabel: "Time range",
+    ranges: { "7d": "Last 7 days", "30d": "Last 30 days", "90d": "Last 90 days", all: "All time" },
+    rangePhrase: { "7d": "the last 7 days", "30d": "the last 30 days", "90d": "the last 90 days", all: "all time" },
+    incidentsInRange: "Incidents in range",
+    openNow: "Open now",
+    overTime: "Incidents over time",
+    bySeverity: "Incidents by severity",
+    needsAttention: "Needs attention",
+    noneOpen: "No open incidents.",
+    emptyWindow: (phrase, older) =>
+      older > 0
+        ? `No incidents in ${phrase}. ${older} older ${older === 1 ? "incident" : "incidents"} exist: pick a wider range to see ${older === 1 ? "it" : "them"}.`
+        : `No incidents in ${phrase}.`,
+    emptyAll: "No incidents yet. Declare one when something breaks.",
+    chartBar: (label, count) => `${label}: ${count}`,
+    chartTableCaption: "The numbers behind the charts",
+    chartColPeriod: "Period",
+    chartColCount: "Count",
+    seeAll: "See all incidents",
+    weekOf: (date) => `Week of ${date}`,
   },
   settings: {
     heading: "Settings",
