@@ -625,6 +625,10 @@ export interface CopyDictionary {
     summaryLabel: string;
     noSummary: string;
     addSummary: string;
+    aiDraft: string;
+    aiDrafting: string;
+    aiFailed: string;
+    aiUnavailable: string;
     editSummary: string;
     editTitle: string;
     titleLabel: string;

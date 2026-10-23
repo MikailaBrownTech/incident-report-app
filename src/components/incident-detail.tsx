@@ -80,6 +80,7 @@ export function IncidentDetail({
   const [editingSummary, setEditingSummary] = useState(false);
   const [summaryDraft, setSummaryDraft] = useState("");
   const [summaryError, setSummaryError] = useState<string | null>(null);
+  const [drafting, setDrafting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -171,6 +172,17 @@ export function IncidentDetail({
         patch({ title: parsed.data }),
       );
     }
+  }
+
+  async function draftSummary() {
+    setDrafting(true);
+    const result = await api<{ summary: string }>(`${base}/ai-summary`, { method: "POST" });
+    setDrafting(false);
+    if (!result.ok) {
+      toast.error(result.code === "ai_unavailable" ? t.incidentDetail.aiUnavailable : t.incidentDetail.aiFailed);
+      return;
+    }
+    setSummaryDraft(result.data.summary);
   }
 
   async function submitSummary(event: FormEvent) {
@@ -355,6 +367,9 @@ export function IncidentDetail({
                 </button>
                 <button type="button" className={secondaryButton} onClick={() => setEditingSummary(false)}>
                   {t.actions.cancel}
+                </button>
+                <button type="button" className={secondaryButton} disabled={drafting} onClick={draftSummary}>
+                  {drafting ? t.incidentDetail.aiDrafting : t.incidentDetail.aiDraft}
                 </button>
               </div>
             </form>
