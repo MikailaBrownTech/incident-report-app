@@ -504,7 +504,7 @@ describe("workspaces: creation, slugs and seeding", () => {
     expect(await prisma.workspace.count({ where: { slug: race } })).toBe(1);
   });
 
-  it.concurrent("seeds owner, system template, retro rule and skin in one go, and audits it", async () => {
+  it.concurrent("seeds owner, default retro rule and skin in one go, and audits it", async () => {
     const user = await owner();
     const slug = `seed-${uid()}`;
     const res = await create(user, { name: "Seeded", slug });
@@ -513,19 +513,12 @@ describe("workspaces: creation, slugs and seeding", () => {
 
     const ws = await prisma.workspace.findUniqueOrThrow({
       where: { id },
-      include: { memberships: true, retroRule: true, postmortemTemplates: true },
+      include: { memberships: true, retroRules: true, postmortemTemplates: true },
     });
     expect(ws.skin).toBe("HAUNTED");
     expect(ws.memberships).toEqual([expect.objectContaining({ userId: user.id, role: "OWNER" })]);
-    expect(ws.retroRule).toMatchObject({ minSeverity: 4, mode: "REQUIRED" });
-    expect(ws.postmortemTemplates).toHaveLength(1);
-    expect(ws.postmortemTemplates[0]).toMatchObject({ isSystem: true, name: "Default" });
-    expect((ws.postmortemTemplates[0].sections as { key: string }[]).map((s) => s.key)).toEqual([
-      "CAUSE",
-      "LAST_SIGHTING",
-      "WITNESSES",
-      "LEARNED",
-    ]);
+    expect(ws.retroRules).toEqual([expect.objectContaining({ minSeverity: 4, mode: "REQUIRED", dueInDays: 5 })]);
+    expect(ws.postmortemTemplates).toHaveLength(0); // the built-in templates are global, not copied per workspace
     const log = await audits(id, "workspace.created");
     expect(log).toHaveLength(1);
     expect(log[0]).toMatchObject({ actorId: user.id, targetType: "workspace", targetId: id });

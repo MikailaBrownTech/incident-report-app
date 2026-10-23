@@ -1,5 +1,6 @@
 import type { CopyDictionary } from "./types";
 
+const dayWord = (n: number) => `${n} ${n === 1 ? "day" : "days"}`;
 const plural = (n: number, one: string, many: string) => (n === 1 ? one : many);
 
 /** "A", "A and B", "A, B and C". */
@@ -13,6 +14,7 @@ export const haunted = {
     incidents: "Hauntings",
     services: "Haunted Services",
     rituals: "Rituals",
+    postmortems: "Autopsies",
     myRituals: "My Rituals",
     settings: "Settings",
     members: "The Coven",
@@ -61,34 +63,179 @@ export const haunted = {
     plural: "Autopsy Reports",
     draft: "Draft",
     published: "Published",
-    publish: "Publish autopsy",
+    publish: "Bury it",
     statusLabel: { DRAFT: "Still on the slab", PUBLISHED: "Filed in the archive" },
     sections: {
-      CAUSE: {
+      summary: {
+        title: "The Tale",
+        prompt: "Tell the tale in a few lines: what stirred in the dark, and how did the night end?",
+      },
+      impact: {
+        title: "The Damage",
+        prompt: "Who or what was touched by the haunting, for how long, and how deeply?",
+      },
+      root_cause: {
         title: "Cause of Death",
-        prompt:
-          "What conditions made this failure possible? Blame the system, never the sleepwalker.",
+        prompt: "What did the house allow to happen? Name the conditions, never the sleepwalker.",
       },
-      LAST_SIGHTING: {
+      detection: {
         title: "Last Known Sighting",
-        prompt:
-          "How did we first notice something was wrong, and what were the omens beforehand?",
+        prompt: "How did we first notice something was wrong, and what would have made the omens easier to read?",
       },
-      WITNESSES: {
-        title: "Witnesses",
-        prompt:
-          "Who and what was present during the response? Describe what they did, not what they did wrong.",
+      response: {
+        title: "The Rescue",
+        prompt: "How did the rescue unfold? What helped, and what slowed the lanterns?",
       },
-      LEARNED: {
+      timeline: {
+        title: "Omens",
+        prompt: "Which moments shaped the night? Mark the hours and the choices made.",
+      },
+      went_well: {
+        title: "What Held the Line",
+        prompt: "What stood firm that we want to keep?",
+      },
+      went_wrong: {
+        title: "What Slipped",
+        prompt: "Where did our wards and rituals fail us?",
+      },
+      lucky: {
+        title: "Narrow Escapes",
+        prompt: "Where did fortune spare us, and how do we stop relying on it?",
+      },
+      lessons: {
         title: "What We Learned",
-        prompt:
-          "What would keep this spirit from returning, or make its visit less terrifying?",
+        prompt: "What will keep this spirit from returning, or make its visit gentler?",
       },
     },
-    blamelessNote:
-      "Autopsies are blameless: the ghost is the system, not the person who found it.",
-    missingForRule: (sev) =>
-      `A published autopsy is required before a ${sev} haunting can be laid to rest.`,
+    blamelessNote: "Autopsies are blameless: the ghost is the system, not the person who found it.",
+    missingForRule: (sev) => `A published autopsy is required before a ${sev} haunting can be laid to rest.`,
+    states: {
+      NOT_APPLICABLE: "Not yet laid to rest",
+      SKIPPED: "Waived",
+      OPTIONAL: "Optional rites",
+      REQUIRED: "Autopsy required",
+      DUE_SOON: "Due soon",
+      OVERDUE: "Overdue",
+      DRAFT: "On the slab",
+      PUBLISHED: "Filed",
+    },
+    templates: {
+      tpl_standard: {
+        name: "Standard autopsy",
+        description: "The full examination: ten sections, for serious hauntings.",
+      },
+      tpl_quick: {
+        name: "Quick review",
+        description: "Three sections for minor hauntings: the tale, the cause and the lesson.",
+      },
+    },
+    backToIncident: "Back to the haunting",
+    start: "Begin the autopsy",
+    starting: "Preparing the slab...",
+    startOpenWarning: "This haunting is still active. You can begin now, but the story may not be finished.",
+    chooseTemplate: "Choose how to examine it",
+    templateHelp: (name) => `The ${name} template is suggested for this haunting's severity.`,
+    cancel: "Cancel",
+    unpublish: "Exhume",
+    unpublishConfirmTitle: "Exhume this autopsy?",
+    unpublishConfirmBody: "It returns to a draft and can be edited again. Everyone will see that it was exhumed.",
+    publishing: "Burying...",
+    readOnlyNotice: "This autopsy is filed and cannot be changed. A Warden can exhume it to make edits.",
+    publishedBy: (name, when) => `Buried by ${name} on ${when}`,
+    startedBy: (name) => `Opened by ${name}`,
+    required: "Required",
+    optional: "Optional",
+    progress: { empty: "Not begun", started: "Begun", complete: "Complete" },
+    sectionsNav: "Sections of the report",
+    jumpToSection: "Jump to a section",
+    showPrompt: "Show prompt",
+    hidePrompt: "Hide prompt",
+    editorLabel: (title) => `Write: ${title}`,
+    missingSections: (titles) => `These required sections still need more words: ${list(titles)}.`,
+    save: {
+      saving: "Saving...",
+      saved: (s) => (s < 5 ? "Saved just now" : `Saved ${s}s ago`),
+      failed: "Couldn't save, retrying",
+      unsaved: "Unsaved changes",
+    },
+    conflict: {
+      title: "Someone else changed this report",
+      body: "A newer version was saved while you were writing. Choose which one to keep. Nothing is lost until you decide.",
+      keepMine: "Keep mine (copy my text first)",
+      keepMineHelp:
+        "Your words replace theirs in the sections you changed. They are copied to the clipboard first, just in case.",
+      loadTheirs: "Load theirs",
+    },
+    refreshTimeline: "Refresh from timeline",
+    refreshTimelineTitle: "Replace the omens?",
+    refreshTimelineBody: "This replaces what is written here with the haunting's current key moments.",
+    copyMarkdown: "Copy as Markdown",
+    copied: "Copied to the clipboard",
+    copyFailed: "Couldn't copy. Select the text and copy it by hand.",
+    print: "Print",
+    actionItems: {
+      heading: "Rituals",
+      placeholder: "Rituals to keep this spirit away will be tracked here soon.",
+    },
+    toolbar: {
+      label: "Formatting",
+      bold: "Bold",
+      italic: "Italic",
+      code: "Inline code",
+      link: "Link",
+      linkPrompt: "Where should the link lead? (http, https or mailto)",
+      heading: "Heading",
+      bulletList: "Bullet list",
+      orderedList: "Numbered list",
+      quote: "Quote",
+      codeBlock: "Code block",
+    },
+    banner: {
+      required: (d) => `Autopsy required, due in ${dayWord(d)}`,
+      dueSoon: (d) => `Autopsy due soon: ${d <= 0 ? "due today" : "due in " + dayWord(d)}`,
+      overdue: (d) => `Autopsy overdue by ${dayWord(d)}. The spirits grow restless`,
+      draft: "An autopsy is on the slab, waiting to be finished.",
+      openHint: "You can begin an autopsy early, even while the haunting continues.",
+      view: "Read the autopsy",
+      continue: "Continue the autopsy",
+    },
+    dueIn: (d) => `in ${dayWord(d)}`,
+    overdueBy: (d) => `${dayWord(d)} overdue`,
+    noDueDate: "No due date",
+    list: {
+      columns: {
+        incident: "Haunting",
+        severity: "Severity",
+        state: "State",
+        author: "Examiner",
+        due: "Due",
+        published: "Filed",
+      },
+      filterState: "State",
+      filterSeverity: "Severity",
+      needsAttention: "Needs attention",
+      searchLabel: "Search autopsies",
+      searchPlaceholder: "Search by title or number",
+      sortLabel: "Sort by",
+      sortOptions: { due: "Due date", severity: "Severity", number: "Number", published: "Filed date" },
+      noResults: "No autopsies match. The dead are elsewhere.",
+      clearFilters: "Clear filters",
+      loadMore: "Dig up more",
+      loadFailed: "Couldn't open the archive.",
+      retry: "Try again",
+      noAuthor: "Unclaimed",
+    },
+    toasts: {
+      started: "The autopsy has begun",
+      published: "The autopsy is buried",
+      unpublished: "The autopsy was exhumed",
+      saveFailed: "Couldn't save your words. They are still here",
+      publishFailed: "The autopsy could not be buried",
+      conflictLoaded: "The latest version has been loaded",
+      timelineRefreshed: "The omens were refreshed",
+      alreadyExists: "An autopsy already exists. Opening it",
+      publishedElsewhere: "This autopsy was already buried by someone else",
+    },
   },
   ritual: {
     singular: "Ritual",
@@ -98,8 +245,7 @@ export const haunted = {
     dueDate: "Must be performed by",
     overdue: "Overdue",
     overdueBy: (d) => `Overdue by ${d} ${plural(d, "day", "days")}. The spirits grow restless`,
-    dueIn: (d) =>
-      d === 0 ? "Due at midnight tonight" : `Due in ${d} ${plural(d, "night", "nights")}`,
+    dueIn: (d) => (d === 0 ? "Due at midnight tonight" : `Due in ${d} ${plural(d, "night", "nights")}`),
     statusLabel: { OPEN: "Unperformed", IN_PROGRESS: "Mid-chant", DONE: "Completed" },
     newRitual: "Prepare a ritual",
   },
@@ -108,34 +254,21 @@ export const haunted = {
     plural: "Revenants",
     suggestionHeading: "This ghost looks familiar",
     link: "Bind to the Revenant",
-    hauntedNTimes: (n) =>
-      `This has haunted you ${n} ${plural(n, "time", "times")} before`,
+    hauntedNTimes: (n) => `This has haunted you ${n} ${plural(n, "time", "times")} before`,
   },
   empty: {
-    incidents: [
-      "No hauntings. Suspiciously quiet.",
-      "Not a ghost in sight. Don't jinx it.",
-    ],
+    incidents: ["No hauntings. Suspiciously quiet.", "Not a ghost in sight. Don't jinx it."],
     timeline: [
       "The séance log is empty. Even the ghosts are silent.",
       "Nothing has happened yet. That's what they always say.",
     ],
-    postmortems: [
-      "No autopsies on file. Nothing has died. Yet.",
-      "The morgue is empty. Enjoy it while it lasts.",
-    ],
+    postmortems: ["No autopsies on file. Nothing has died. Yet.", "The morgue is empty. Enjoy it while it lasts."],
     rituals: [
       "No rituals scheduled. The candles remain unlit.",
       "No rituals. Either you're thorough, or the ghosts are.",
     ],
-    myRituals: [
-      "Your ritual list is empty. Go home early.",
-      "Nothing for you to chant. Rare and beautiful.",
-    ],
-    revenants: [
-      "No revenants. The dead are staying dead.",
-      "No ghost has returned. Knock on wood.",
-    ],
+    myRituals: ["Your ritual list is empty. Go home early.", "Nothing for you to chant. Rare and beautiful."],
+    revenants: ["No revenants. The dead are staying dead.", "No ghost has returned. Knock on wood."],
     members: ["The coven is empty. Summon some help."],
     dashboardOverdue: [
       "No overdue rituals. The spirits are, for once, satisfied.",
@@ -273,8 +406,7 @@ export const haunted = {
     accepting: "Joining…",
     signInToAccept: "Enter the Crypt to accept",
     mismatchHeading: "Wrong soul",
-    mismatchBody: (invited, current) =>
-      `This summons was meant for ${invited}, but you walk as ${current}.`,
+    mismatchBody: (invited, current) => `This summons was meant for ${invited}, but you walk as ${current}.`,
     switchAccount: "Enter as someone else",
     expired: "This summons has faded. Ask for a new one.",
     revoked: "This summons was rescinded.",
@@ -419,7 +551,9 @@ export const haunted = {
     created: "The service has been conjured.",
     renamed: "The service has a new name.",
     deleted: (unlinked) =>
-      unlinked > 0 ? `Service banished; ${unlinked} ${unlinked === 1 ? "haunting" : "hauntings"} cut loose.` : "Service banished.",
+      unlinked > 0
+        ? `Service banished; ${unlinked} ${unlinked === 1 ? "haunting" : "hauntings"} cut loose.`
+        : "Service banished.",
     nameTaken: "A service with that name already haunts this crypt.",
     empty: "No services yet. Conjure the first one above.",
     loadFailed: "The services could not be summoned.",
@@ -496,6 +630,8 @@ export const haunted = {
       incidentDeleted: "The haunting was banished",
       revenantLinked: "Bound to an earlier haunting",
       postmortemPublished: "The autopsy was published",
+      postmortemStarted: (name) => `${name} opened the autopsy`,
+      postmortemUnpublished: "The autopsy was exhumed",
       ritualCreated: "A ritual was prepared",
       retroOverride: "The autopsy requirement was waived",
       external: "A message from beyond",

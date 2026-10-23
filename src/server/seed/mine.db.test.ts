@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
+import { docText, isMeaningful, readContent, validateContent } from "@/features/postmortems/content";
+import { BUILT_IN_TEMPLATES } from "@/features/postmortems/sections";
+import { getPostmortemStatus } from "@/features/postmortems/status";
 import { prisma } from "@/server/db/client";
 import { createUser } from "@/test/fixtures";
+import { DUE_SOON_KEY } from "./mine-postmortems";
 import { loadFixture, SeedMineError, seedKeyOf, seedMine, type MinePlan } from "./mine";
 
 const NOW = new Date("2026-06-15T12:00:00Z");
@@ -9,7 +13,11 @@ const yes = async () => true;
 async function userWithWorkspace(name: string, members = 0) {
   const me = await createUser(name);
   const ws = await prisma.workspace.create({
-    data: { name: `${name} ws`, slug: `${name}-${Math.random().toString(36).slice(2, 8)}` },
+    data: {
+      name: `${name} ws`,
+      slug: `${name}-${Math.random().toString(36).slice(2, 8)}`,
+      retroRules: { create: {} },
+    },
   });
   await prisma.membership.create({ data: { workspaceId: ws.id, userId: me.id, role: "OWNER" } });
   const others = [];
@@ -49,6 +57,7 @@ describe("seed:mine", () => {
       servicesCreated: 8,
       incidentsCreated: 16,
       incidentsSkipped: 0,
+      postmortemsCreated: 4,
     });
     expect(r.numbers).toEqual(Array.from({ length: 16 }, (_, i) => i + 1));
     expect((await prisma.workspace.findUniqueOrThrow({ where: { id: ws.id } })).nextIncidentNumber).toBe(17);
@@ -68,7 +77,10 @@ describe("seed:mine", () => {
         createdById: me.id,
       });
       expect(inc.seedKey).toBe(seedKeyOf(spec.title));
-      expect(inc.startedAt.getTime()).toBe(NOW.getTime() - spec.startedHoursAgo * 3_600_000);
+      // (the one incident shown as "due soon" is moved to resolve four days ago; it has its own test)
+      if (inc.seedKey !== DUE_SOON_KEY) {
+        expect(inc.startedAt.getTime()).toBe(NOW.getTime() - spec.startedHoursAgo * 3_600_000);
+      }
       if (spec.status === "RESOLVED") {
         expect(inc.resolvedAt!.getTime() - inc.startedAt.getTime()).toBe(spec.durationMinutes! * 60_000);
       } else expect(inc.resolvedAt).toBeNull();
@@ -79,9 +91,12 @@ describe("seed:mine", () => {
       for (const n of notes) expect(n.createdAt.getTime()).toBe(n.occurredAt.getTime()); // nothing "added later"
       const sorted = [...inc.events].sort((a, b) => a.occurredAt.getTime() - b.occurredAt.getTime());
       expect(sorted[0]).toMatchObject({ type: "STATUS_CHANGED", source: "SYSTEM", payload: { created: true } });
-      expect(inc.events.every((e) => e.occurredAt >= inc.startedAt && e.occurredAt <= (inc.resolvedAt ?? NOW))).toBe(
-        true,
-      );
+      // (postmortem events come after the incident is resolved, so they are checked in their own test)
+      expect(
+        inc.events
+          .filter((e) => !e.type.startsWith("POSTMORTEM_"))
+          .every((e) => e.occurredAt >= inc.startedAt && e.occurredAt <= (inc.resolvedAt ?? NOW)),
+      ).toBe(true);
       const lastStatus = inc.events
         .filter((e) => e.type === "STATUS_CHANGED")
         .sort((a, b) => a.occurredAt.getTime() - b.occurredAt.getTime())
@@ -134,6 +149,7 @@ describe("seed:mine", () => {
       services: await prisma.service.count({ where: { workspaceId: ws.id } }),
       links: await prisma.incidentService.count({ where: { workspaceId: ws.id } }),
       roles: await prisma.incidentAssignment.count({ where: { workspaceId: ws.id } }),
+      postmortems: await prisma.postmortem.count({ where: { workspaceId: ws.id } }),
       audits: await prisma.auditLog.count({ where: { workspaceId: ws.id } }),
       next: (await prisma.workspace.findUniqueOrThrow({ where: { id: ws.id } })).nextIncidentNumber,
     });
@@ -144,9 +160,124 @@ describe("seed:mine", () => {
       incidentsCreated: 0,
       incidentsSkipped: 16,
       eventsCreated: 0,
+      postmortemsCreated: 0,
       numbers: [],
     });
     expect(await counts()).toEqual(before);
+    expect(before.postmortems).toBe(4);
+  });
+
+  it("seeds postmortems: two published, two drafts, two overdue, one due soon", async () => {
+    const { me, ws } = await userWithWorkspace("pm-seed");
+    await run(me.email);
+    const rules = await prisma.retroRule.findMany({ where: { workspaceId: ws.id } });
+    const incidents = await prisma.incident.findMany({
+      where: { workspaceId: ws.id },
+      include: {
+        postmortem: true,
+        events: { where: { type: { in: ["POSTMORTEM_STARTED", "POSTMORTEM_PUBLISHED"] } } },
+      },
+    });
+    const state = (title: string) => {
+      const i = incidents.find((x) => x.title === title)!;
+      return getPostmortemStatus(i, rules, i.postmortem, NOW).state;
+    };
+    expect(state("Database primary failover")).toBe("PUBLISHED");
+    expect(state("Checkout API timeouts during flash sale")).toBe("PUBLISHED");
+    expect(state("Payment webhook failures")).toBe("DRAFT");
+    expect(state("Search index lag after reindex")).toBe("DRAFT");
+    expect(state("Login failures for SSO users")).toBe("OVERDUE");
+    expect(state("Checkout API timeout spike")).toBe("OVERDUE");
+    expect(state("Web app blank page after deploy")).toBe("DUE_SOON");
+
+    // the incident whose resolution was adjusted still has a sensible shape
+    const blank = incidents.find((x) => x.title === "Web app blank page after deploy")!;
+    expect(blank.resolvedAt!.getTime()).toBe(NOW.getTime() - 4 * 86_400_000);
+    expect(blank.resolvedAt!.getTime() - blank.startedAt.getTime()).toBe(35 * 60_000);
+    expect(blank.postmortem).toBeNull();
+
+    // everything else resolved at severity 4+ without a postmortem is exactly those three
+    const needing = incidents
+      .filter((i) => i.severity >= 4 && i.status === "RESOLVED" && !i.postmortem)
+      .map((i) => i.title)
+      .sort();
+    expect(needing).toEqual([
+      "Checkout API timeout spike",
+      "Login failures for SSO users",
+      "Web app blank page after deploy",
+    ]);
+  });
+
+  it("writes believable postmortems: published ones are complete, drafts are partly filled, events are in order", async () => {
+    const { me, ws } = await userWithWorkspace("pm-content");
+    await run(me.email);
+    const pms = await prisma.postmortem.findMany({
+      where: { workspaceId: ws.id },
+      include: { incident: { include: { events: true } } },
+    });
+    expect(pms).toHaveLength(4);
+    for (const pm of pms) {
+      const template = BUILT_IN_TEMPLATES.find((t) => t.id === pm.templateId)!;
+      const content = readContent(pm.content);
+      expect(Object.keys(content.sections).every((k) => template.sections.some((s) => s.key === k))).toBe(true);
+      expect(
+        validateContent(
+          content.sections,
+          template.sections.map((s) => s.key),
+        ).ok,
+      ).toBe(true);
+      const required = template.sections.filter((s) => s.required).map((s) => s.key);
+      const filled = required.filter((k) => isMeaningful(content.sections[k]));
+      if (pm.status === "PUBLISHED") {
+        expect(filled).toEqual(required); // could be published as it stands
+        expect(pm.publishedAt).not.toBeNull();
+        expect(pm.publishedAt! > pm.incident.resolvedAt!).toBe(true);
+        expect(pm.publishedAt! <= NOW).toBe(true);
+        expect(pm.publishedById).not.toBeNull();
+        const events = pm.incident.events.filter((e) => e.type.startsWith("POSTMORTEM_"));
+        expect(events.map((e) => e.type).sort()).toEqual(["POSTMORTEM_PUBLISHED", "POSTMORTEM_STARTED"]);
+        expect(
+          await prisma.auditLog.count({
+            where: { workspaceId: ws.id, action: "postmortem.published", targetId: pm.id },
+          }),
+        ).toBe(1);
+      } else {
+        expect(filled.length).toBeGreaterThan(0);
+        expect(filled.length).toBeLessThan(required.length); // partly filled
+        expect(pm.publishedAt).toBeNull();
+        expect(pm.incident.events.filter((e) => e.type === "POSTMORTEM_STARTED")).toHaveLength(1);
+      }
+    }
+    // the root cause comes from the fixture
+    const failover = pms.find((p) => p.incident.title === "Database primary failover")!;
+    expect(docText(readContent(failover.content).sections.root_cause)).toContain("Hardware fault on the primary node");
+    // standard published ones carry a timeline built from the incident's notes
+    expect(docText(readContent(failover.content).sections.timeline)).toContain("Failover triggered automatically");
+  });
+
+  it("adds postmortems to an account that was seeded before they existed, without touching anything else", async () => {
+    const { me, ws } = await userWithWorkspace("pm-late");
+    await run(me.email);
+    const incidentsBefore = JSON.stringify(
+      await prisma.incident.findMany({ where: { workspaceId: ws.id }, orderBy: { number: "asc" } }),
+    );
+    await prisma.postmortem.deleteMany({ where: { workspaceId: ws.id } });
+    const r = await run(me.email);
+    expect(r).toMatchObject({ incidentsCreated: 0, incidentsSkipped: 16, postmortemsCreated: 4 });
+    expect(
+      JSON.stringify(await prisma.incident.findMany({ where: { workspaceId: ws.id }, orderBy: { number: "asc" } })),
+    ).toBe(incidentsBefore);
+  });
+
+  it("never overwrites a postmortem someone has edited", async () => {
+    const { me, ws } = await userWithWorkspace("pm-edited");
+    await run(me.email);
+    const pm = await prisma.postmortem.findFirstOrThrow({ where: { workspaceId: ws.id, status: "DRAFT" } });
+    await prisma.postmortem.update({ where: { id: pm.id }, data: { content: { sections: {} }, version: 9 } });
+    await run(me.email);
+    const after = await prisma.postmortem.findUniqueOrThrow({ where: { id: pm.id } });
+    expect(after.version).toBe(9);
+    expect(after.content).toEqual({ sections: {} });
   });
 
   it("reuses services that already exist, and never resurrects a deleted incident", async () => {
@@ -213,12 +344,14 @@ describe("seed:mine", () => {
       expect(r).toMatchObject({ workspaceCreated: true, incidentsCreated: 16 });
       const m = await prisma.membership.findFirstOrThrow({
         where: { userId: me.id },
-        include: { workspace: { include: { retroRule: true, postmortemTemplates: true } } },
+        include: { workspace: { include: { retroRules: true, postmortemTemplates: true } } },
       });
       expect(m.role).toBe("OWNER");
       expect(m.workspace).toMatchObject({ name: "The Crypt Demo", skin: "HAUNTED" });
-      expect(m.workspace.retroRule).toMatchObject({ minSeverity: 4, mode: "REQUIRED" });
-      expect(m.workspace.postmortemTemplates).toHaveLength(1);
+      expect(m.workspace.retroRules).toEqual([
+        expect.objectContaining({ minSeverity: 4, mode: "REQUIRED", dueInDays: 5 }),
+      ]);
+      expect(m.workspace.postmortemTemplates).toHaveLength(0);
       expect(r.workspaceSlug).toBe(m.workspace.slug);
     });
   });
@@ -275,23 +408,34 @@ describe("seed:mine", () => {
           return true;
         },
       });
-      expect(plan).toMatchObject({ mode: "reset", resetCount: 16, resetKept: 0 });
-      expect(r.incidentsDeleted).toBe(16);
+      // the four seeded incidents that have a postmortem are kept; the other twelve go
+      expect(plan).toMatchObject({ mode: "reset", resetCount: 12, resetKept: 4 });
+      expect(r).toMatchObject({ incidentsDeleted: 12, incidentsKept: 4 });
 
-      expect(await prisma.incident.findMany({ where: { workspaceId: ws.id }, select: { id: true } })).toEqual([
-        { id: real.id },
-      ]);
-      expect(await prisma.event.count({ where: { workspaceId: ws.id } })).toBe(1);
-      expect(await prisma.incidentService.count({ where: { workspaceId: ws.id } })).toBe(0);
-      expect(await prisma.incidentAssignment.count({ where: { workspaceId: ws.id } })).toBe(1);
+      const remaining = await prisma.incident.findMany({
+        where: { workspaceId: ws.id },
+        select: { id: true, seedKey: true, postmortem: { select: { id: true } } },
+      });
+      expect(remaining.filter((i) => i.seedKey === null).map((i) => i.id)).toEqual([real.id]);
+      const seededLeft = remaining.filter((i) => i.seedKey !== null);
+      expect(seededLeft).toHaveLength(4);
+      expect(seededLeft.every((i) => i.postmortem)).toBe(true); // exactly the ones with postmortems
+      const keptIds = remaining.map((i) => i.id);
+      expect(
+        await prisma.incidentService.count({ where: { workspaceId: ws.id, incidentId: { notIn: keptIds } } }),
+      ).toBe(0);
+      expect(await prisma.event.count({ where: { workspaceId: ws.id, incidentId: { notIn: keptIds } } })).toBe(0);
+      expect(await prisma.event.count({ where: { incidentId: real.id } })).toBe(1);
+      expect(await prisma.incidentAssignment.count({ where: { incidentId: real.id } })).toBe(1);
+      expect(await prisma.postmortem.count({ where: { workspaceId: ws.id } })).toBe(4);
       expect(await prisma.service.count({ where: { workspaceId: ws.id } })).toBe(keptBefore.services);
       expect(await prisma.membership.count({ where: { workspaceId: ws.id } })).toBe(keptBefore.members);
       expect(await prisma.incident.count({ where: { workspaceId: other.ws.id } })).toBe(keptBefore.otherIncidents);
       expect(await prisma.event.count({ where: { workspaceId: other.ws.id } })).toBe(keptBefore.otherEvents);
 
-      // and seeding again brings them back with fresh numbers
+      // and seeding again brings the twelve back with fresh numbers (the four kept ones are skipped, not duplicated)
       const again = await run(me.email);
-      expect(again.incidentsCreated).toBe(16);
+      expect(again).toMatchObject({ incidentsCreated: 12, incidentsSkipped: 4, postmortemsCreated: 0 });
       expect(again.numbers[0]).toBeGreaterThan(16);
     });
 
@@ -302,16 +446,21 @@ describe("seed:mine", () => {
       expect(declined.cancelled).toBe(true);
       expect(await prisma.incident.count({ where: { workspaceId: ws.id } })).toBe(16);
 
-      const withPm = await prisma.incident.findFirstOrThrow({ where: { workspaceId: ws.id, number: 1 } });
-      await prisma.postmortem.create({
-        data: { workspaceId: ws.id, incidentId: withPm.id, authorId: me.id },
+      // somebody writes a postmortem for one that had none ("Login failures for SSO users")
+      const sso = await prisma.incident.findFirstOrThrow({
+        where: { workspaceId: ws.id, title: "Login failures for SSO users" },
       });
+      await prisma.postmortem.create({
+        data: { workspaceId: ws.id, incidentId: sso.id, authorId: me.id, templateId: "tpl_standard" },
+      });
+      const before = await prisma.postmortem.findMany({ where: { workspaceId: ws.id }, orderBy: { id: "asc" } });
       const r = await run(me.email, { reset: true });
-      expect(r).toMatchObject({ incidentsDeleted: 15, incidentsKept: 1 });
-      expect(await prisma.incident.findMany({ where: { workspaceId: ws.id }, select: { id: true } })).toEqual([
-        { id: withPm.id },
-      ]);
-      expect(await prisma.postmortem.count({ where: { incidentId: withPm.id } })).toBe(1);
+      expect(r).toMatchObject({ incidentsDeleted: 11, incidentsKept: 5 });
+      expect(await prisma.incident.count({ where: { workspaceId: ws.id } })).toBe(5);
+      expect(await prisma.postmortem.findMany({ where: { workspaceId: ws.id }, orderBy: { id: "asc" } })).toEqual(
+        before,
+      );
+      expect(await prisma.postmortem.count({ where: { incidentId: sso.id } })).toBe(1);
     });
 
     it("is a quiet no-op when nothing was seeded", async () => {

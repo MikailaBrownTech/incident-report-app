@@ -17,7 +17,7 @@ export function SidebarFrame({ brand, children }: { brand: ReactNode; children: 
   const open = openOn === pathname;
 
   return (
-    <aside className="relative z-10 border-b border-border bg-bg/80 md:min-h-screen md:w-64 md:shrink-0 md:border-b-0 md:border-r">
+    <aside className="relative z-10 print:hidden border-b border-border bg-bg/80 md:min-h-screen md:w-64 md:shrink-0 md:border-b-0 md:border-r">
       <div className="flex items-center justify-between gap-3 p-4">
         {brand}
         <button

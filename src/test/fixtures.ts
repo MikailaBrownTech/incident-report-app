@@ -22,7 +22,7 @@ export async function createTenant(label: string) {
     data: {
       name: `${label} crypt`,
       slug: `${label}-${id()}`,
-      retroRule: { create: {} },
+      retroRules: { create: {} },
       memberships: { create: { userId: owner.id, role: "OWNER" } },
     },
   });
@@ -51,6 +51,7 @@ export async function createTenant(label: string) {
       workspaceId: w,
       incidentId: incident.id,
       authorId: owner.id,
+      templateId: "tpl_standard",
       sections: { create: { key: "CAUSE", content: {}, position: 0 } },
     },
   });
@@ -96,7 +97,7 @@ export async function createTeam(label = "team") {
     data: {
       name: `${label} crypt`,
       slug: `${label}-${owner.id.slice(2)}`,
-      retroRule: { create: {} },
+      retroRules: { create: {} },
       memberships: { create: { userId: owner.id, role: "OWNER" } },
     },
   });

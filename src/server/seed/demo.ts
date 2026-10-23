@@ -1,4 +1,5 @@
 import type { IncidentStatus, PrismaClient, Prisma } from "@/generated/prisma/client";
+import { ensureSeedPostmortem, type SeedPostmortem } from "./postmortems";
 
 /**
  * Demo data for local development: one workspace ("demo") with 5 people, 8 services and 15 incidents spread
@@ -340,6 +341,48 @@ async function rebuildOldTimeline(db: PrismaClient, workspaceId: string, inciden
   return !marked;
 }
 
+/**
+ * Postmortems for a few of the resolved incidents: two published, one draft. #10 (severity 4, resolved, none) is left
+ * without one on purpose, so it shows as overdue.
+ */
+const POSTMORTEMS: Record<number, SeedPostmortem> = {
+  3: {
+    status: "PUBLISHED",
+    sections: {
+      summary:
+        "Checkout requests timed out for roughly 12% of customers after a slow query shipped with the 14:05 release.",
+      impact: "About one in eight checkout attempts failed for two and a half hours.",
+      root_cause: [
+        "Connection pool exhaustion on the primary database.",
+        "Nothing in the release process measured query cost before it shipped.",
+      ],
+      detection: "p99 latency and the error-rate alarm fired within minutes; customers noticed at about the same time.",
+      response: "The release was rolled back and a five second statement timeout was added.",
+      lessons: ["Measure query cost in staging before a release.", "Keep a statement timeout on every service."],
+    },
+  },
+  6: {
+    status: "PUBLISHED",
+    sections: {
+      summary:
+        "A planned minor-version upgrade triggered an unplanned failover, and writes were unavailable for several minutes.",
+      impact: "Every write path was unavailable, and a few services needed a restart before they reconnected.",
+      root_cause: [
+        "The upgrade procedure assumed a clean switchover.",
+        "Connection retry settings are inconsistent between services.",
+      ],
+      lessons: ["Standardise connection retry settings.", "Rehearse upgrades against a copy of production."],
+    },
+  },
+  5: {
+    status: "DRAFT",
+    sections: {
+      summary: "Webhooks from the payment provider returned errors, so orders stayed pending.",
+      impact: "Orders waited in pending until the signing secret was updated.",
+    },
+  },
+};
+
 export interface SeedResult {
   workspaceId: string;
   createdIncidents: number;
@@ -367,19 +410,7 @@ export async function seedDemo(db: PrismaClient, options: { now?: Date } = {}): 
         name: "Demo Crypt",
         slug: DEMO_SLUG,
         skin: "HAUNTED",
-        retroRule: { create: { minSeverity: 4, mode: "REQUIRED" } },
-        postmortemTemplates: {
-          create: {
-            name: "Default",
-            isSystem: true,
-            sections: [
-              { key: "CAUSE", position: 0 },
-              { key: "LAST_SIGHTING", position: 1 },
-              { key: "WITNESSES", position: 2 },
-              { key: "LEARNED", position: 3 },
-            ],
-          },
-        },
+        retroRules: { create: { minSeverity: 4, mode: "REQUIRED", dueInDays: 5 } },
       },
     }));
   const workspaceId = workspace.id;
@@ -544,6 +575,25 @@ export async function seedDemo(db: PrismaClient, options: { now?: Date } = {}): 
       });
     });
     created += 1;
+  }
+
+  // Postmortems for the planned incidents that don't have one yet (running again adds nothing).
+  for (const [numberText, plan] of Object.entries(POSTMORTEMS)) {
+    const number = Number(numberText);
+    const spec = SPECS.find((s) => s.number === number)!;
+    const incident = await db.incident.findFirst({
+      where: { workspaceId, number },
+      select: { id: true, number: true, severity: true, resolvedAt: true },
+    });
+    if (!incident) continue;
+    await ensureSeedPostmortem(db, {
+      workspaceId,
+      incident,
+      spec: plan,
+      authorId: spec.roles.SCRIBE ?? spec.roles.COMMANDER ?? person("morgan"),
+      publisherId: spec.roles.COMMANDER ?? person("morgan"),
+      now,
+    });
   }
 
   // New incidents declared after seeding must not collide with the seeded numbers.

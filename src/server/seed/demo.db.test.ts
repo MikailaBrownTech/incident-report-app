@@ -1,5 +1,8 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { listIncidents } from "@/features/incidents/list";
+import { isMeaningful, readContent } from "@/features/postmortems/content";
+import { BUILT_IN_TEMPLATES } from "@/features/postmortems/sections";
+import { getPostmortemStatus } from "@/features/postmortems/status";
 import { parseListParams } from "@/features/incidents/list-params";
 import { listServices } from "@/features/services/service";
 import { listTimeline } from "@/features/timeline/queries";
@@ -20,6 +23,7 @@ const counts = async () => ({
   links: await prisma.incidentService.count({ where: { workspaceId: wsId } }),
   assignments: await prisma.incidentAssignment.count({ where: { workspaceId: wsId } }),
   events: await prisma.event.count({ where: { workspaceId: wsId } }),
+  postmortems: await prisma.postmortem.count({ where: { workspaceId: wsId } }),
   audits: await prisma.auditLog.count({ where: { workspaceId: wsId } }),
   workspaces: await prisma.workspace.count({ where: { slug: DEMO_SLUG } }),
   retroRules: await prisma.retroRule.count({ where: { workspaceId: wsId } }),
@@ -40,7 +44,7 @@ describe("demo seed", () => {
       services: 8,
       incidents: 15,
       retroRules: 1,
-      templates: 1,
+      templates: 0,
     });
     const ws = await prisma.workspace.findUniqueOrThrow({ where: { id: wsId } });
     expect(ws).toMatchObject({ slug: "demo", skin: "HAUNTED", nextIncidentNumber: 16 });
@@ -106,7 +110,13 @@ describe("demo seed", () => {
   it("writes event history and an audit row for every incident, in a sensible order", async () => {
     const incidents = await prisma.incident.findMany({
       where: { workspaceId: wsId },
-      include: { events: { orderBy: { occurredAt: "asc" } } },
+      // postmortem events come after resolution and have their own test below
+      include: {
+        events: {
+          where: { type: { notIn: ["POSTMORTEM_STARTED", "POSTMORTEM_PUBLISHED"] } },
+          orderBy: { occurredAt: "asc" },
+        },
+      },
     });
     for (const inc of incidents) {
       const first = inc.events[0];
@@ -183,6 +193,30 @@ describe("demo seed", () => {
     expect(asc.items.filter((e) => e.isKeyMoment)).toHaveLength(1);
     const keyOnly = await listTimeline(db, inc.id, { filter: "key", order: "asc", limit: 100 });
     expect(keyOnly.items.map((e) => e.body)).toEqual(["Rolled back release 4812."]);
+  });
+
+  it("has two published postmortems, one draft, and an overdue incident with none", async () => {
+    const pms = await prisma.postmortem.findMany({ where: { workspaceId: wsId }, include: { incident: true } });
+    expect(pms.map((p) => `${p.incident.number}:${p.status}`).sort()).toEqual([
+      "3:PUBLISHED",
+      "5:DRAFT",
+      "6:PUBLISHED",
+    ]);
+    for (const pm of pms.filter((p) => p.status === "PUBLISHED")) {
+      expect(pm.publishedAt).not.toBeNull();
+      expect(pm.publishedById).not.toBeNull();
+      expect(await prisma.event.count({ where: { incidentId: pm.incidentId, type: "POSTMORTEM_PUBLISHED" } })).toBe(1);
+      const template = BUILT_IN_TEMPLATES.find((t) => t.id === pm.templateId)!;
+      const content = readContent(pm.content);
+      for (const s of template.sections.filter((x) => x.required))
+        expect(isMeaningful(content.sections[s.key]), s.key).toBe(true);
+    }
+    const rules = await prisma.retroRule.findMany({ where: { workspaceId: wsId } });
+    const ten = await prisma.incident.findFirstOrThrow({
+      where: { workspaceId: wsId, number: 10 },
+      include: { postmortem: true },
+    });
+    expect(getPostmortemStatus(ten, rules, ten.postmortem, NOW).state).toBe("OVERDUE"); // severity 4, resolved, none
   });
 
   it("includes look-alike titles that trigram matching actually pairs up", async () => {

@@ -34,6 +34,9 @@ vi.mock("@/components/incident-timeline", () => ({
     />
   ),
 }));
+vi.mock("@/components/postmortem-panel", () => ({
+  PostmortemPanel: () => <div data-testid="postmortem-panel-stub" />,
+}));
 vi.mock("next/link", () => ({
   default: ({ href, children, ...rest }: { href: string; children: ReactNode }) => (
     <a href={href} {...rest}>
@@ -96,6 +99,7 @@ function setup(
             filter: "all",
             order: "asc",
           }}
+          postmortem={{ status: null, rules: [], templates: [] }}
         />
       </ToastProvider>
     </CopyProvider>,

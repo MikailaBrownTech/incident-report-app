@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useRef, useState, type KeyboardEvent, type MouseEvent } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent, type MouseEvent } from "react";
 import { Avatar } from "@/components/avatar";
 import { SeverityBadge, StatusPill } from "@/components/badges";
 import { DeclareIncidentButton } from "@/components/declare-incident";
 import { EmptyState } from "@/components/empty-state";
+import { PostmortemBadge } from "@/components/postmortem-badge";
 import { secondaryButton } from "@/components/form";
 import * as rt from "@/components/responsive-table";
 import { LiveDuration, RelativeTime } from "@/components/time-display";
@@ -15,6 +16,7 @@ import { emptyMessage, severityName, type SeverityLevel, type SeverityOverrides 
 import { useCopy } from "@/copy/provider";
 import type { IncidentRow } from "@/features/incidents/list";
 import { ALL_STATUSES, type StatusKey } from "@/features/incidents/schema";
+import { NEEDS_ATTENTION, getPostmortemStatus, type RuleLike } from "@/features/postmortems/status";
 import { api } from "@/lib/api-client";
 import { apiErrorMessage } from "@/lib/api-messages";
 
@@ -26,10 +28,20 @@ interface Props {
   queryString: string;
   hasFilters: boolean;
   severityLabels: SeverityOverrides;
+  /** The workspace's retro rules, to badge rows whose postmortem is required, due soon or overdue. */
+  retroRules?: RuleLike[];
 }
 
 /** The table plus "Load more". The parent keys this on the query so new filters start fresh. */
-export function IncidentList({ slug, initial, initialCursor, queryString, hasFilters, severityLabels }: Props) {
+export function IncidentList({
+  slug,
+  initial,
+  initialCursor,
+  queryString,
+  hasFilters,
+  severityLabels,
+  retroRules = [],
+}: Props) {
   const t = useCopy();
   const toast = useToast();
   const router = useRouter();
@@ -37,6 +49,11 @@ export function IncidentList({ slug, initial, initialCursor, queryString, hasFil
   const [items, setItems] = useState(initial);
   const [cursor, setCursor] = useState(initialCursor);
   const [loading, setLoading] = useState(false);
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(id);
+  }, []);
 
   async function loadMore() {
     if (!cursor) return;
@@ -159,6 +176,7 @@ export function IncidentList({ slug, initial, initialCursor, queryString, hasFil
                   <Link href={`/app/${slug}/incidents/${i.number}`} className="hover:text-accent hover:underline">
                     {i.title}
                   </Link>
+                  <PostmortemRowBadge row={i} rules={retroRules} now={now} />
                 </td>
                 <td role="cell" data-label={t.incidentList.colSeverity} className={rt.td}>
                   <SeverityBadge
@@ -341,5 +359,17 @@ function ServiceChips({ services }: { services: { id: string; name: string }[] }
         </li>
       ) : null}
     </ul>
+  );
+}
+
+/** A small badge for rows that need a postmortem: required, due soon or overdue. Nothing for any other state. */
+function PostmortemRowBadge({ row, rules, now }: { row: IncidentRow; rules: RuleLike[]; now: Date }) {
+  const t = useCopy();
+  const { state } = getPostmortemStatus(row, rules, row.postmortemStatus ? { status: row.postmortemStatus } : null, now);
+  if (!(NEEDS_ATTENTION as readonly string[]).includes(state)) return null;
+  return (
+    <span className="ml-2 inline-block align-middle">
+      <PostmortemBadge state={state} label={t.postmortem.states[state]} />
+    </span>
   );
 }

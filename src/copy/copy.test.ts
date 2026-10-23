@@ -56,11 +56,20 @@ describe("copy dictionaries", () => {
     expect(Object.values(t.status)).toEqual(["Lurking", "Possessed", "Exorcising", "Laid to Rest"]);
     expect(t.postmortem.singular).toBe("Autopsy Report");
     expect(Object.values(t.postmortem.sections).map((s) => s.title)).toEqual([
+      "The Tale",
+      "The Damage",
       "Cause of Death",
       "Last Known Sighting",
-      "Witnesses",
+      "The Rescue",
+      "Omens",
+      "What Held the Line",
+      "What Slipped",
+      "Narrow Escapes",
       "What We Learned",
     ]);
+    expect(t.postmortem.publish).toBe("Bury it");
+    expect(t.postmortem.unpublish).toBe("Exhume");
+    expect(t.postmortem.start).toBe("Begin the autopsy");
     expect(t.ritual.plural).toBe("Rituals");
     expect(t.revenant.singular).toBe("Revenant");
     expect(Object.values(t.incidentRole)).toEqual(["Exorcist", "Scribe", "Medium"]);

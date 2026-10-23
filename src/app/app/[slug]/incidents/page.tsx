@@ -5,6 +5,7 @@ import { IncidentList } from "@/components/incident-list";
 import { getCopy, type SeverityOverrides } from "@/copy";
 import { listIncidents } from "@/features/incidents/list";
 import { hasActiveFilters, parseListParams } from "@/features/incidents/list-params";
+import { loadRetroRules } from "@/features/postmortems/service";
 import { listServices } from "@/features/services/service";
 import { getWorkspaceContext } from "@/server/auth/context";
 
@@ -15,7 +16,11 @@ export default async function IncidentsPage({ params, searchParams }: PageProps<
   const t = getCopy(ctx.skin);
 
   const listParams = parseListParams(raw);
-  const [page, services] = await Promise.all([listIncidents(ctx.db, listParams), listServices(ctx.db)]);
+  const [page, services, retroRules] = await Promise.all([
+    listIncidents(ctx.db, listParams),
+    listServices(ctx.db),
+    loadRetroRules(ctx.db),
+  ]);
   const severityLabels = ctx.workspace.severityLabels as SeverityOverrides;
 
   // The filters without the cursor: used as the list's key and to fetch further pages.
@@ -47,6 +52,7 @@ export default async function IncidentsPage({ params, searchParams }: PageProps<
         queryString={queryString}
         hasFilters={hasActiveFilters(listParams)}
         severityLabels={severityLabels}
+        retroRules={retroRules}
       />
     </div>
   );

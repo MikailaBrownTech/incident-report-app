@@ -3,6 +3,8 @@ import path from "node:path";
 import { z } from "zod";
 import type { IncidentRole, IncidentStatus, Prisma, PrismaClient } from "@/generated/prisma/client";
 import { createWorkspaceWithOwner } from "@/server/db/root";
+import { DUE_SOON_KEY, DUE_SOON_RESOLVED_DAYS_AGO, seedPostmortemsFor } from "./mine-postmortems";
+import { ensureSeedPostmortem } from "./postmortems";
 
 /**
  * Loads `prisma/seed-incidents.json` into the signed-in user's own workspace (`pnpm seed:mine`).
@@ -17,6 +19,7 @@ import { createWorkspaceWithOwner } from "@/server/db/root";
 
 const MIN = 60_000;
 const HOUR = 60 * MIN;
+const DAY = 24 * HOUR;
 const FIXTURE = "prisma/seed-incidents.json";
 const NEW_WORKSPACE_NAME = "The Crypt Demo";
 const NEW_WORKSPACE_SLUG = "the-crypt-demo";
@@ -33,6 +36,7 @@ const fixtureSchema = z.object({
         services: z.array(z.string()),
         startedHoursAgo: z.number().positive(),
         durationMinutes: z.number().positive().nullable(),
+        rootCause: z.string().optional(),
         commander: z.number().int().min(0).nullable(),
         scribe: z.number().int().min(0).nullable(),
         notes: z.array(z.object({ minutesAfterStart: z.number().min(0), body: z.string().min(1) })),
@@ -90,6 +94,7 @@ export interface MineResult {
   incidentsCreated: number;
   incidentsSkipped: number;
   eventsCreated: number;
+  postmortemsCreated: number;
   numbers: number[];
   incidentsDeleted: number;
   incidentsKept: number;
@@ -134,6 +139,7 @@ export async function seedMine(db: PrismaClient, opts: MineOptions): Promise<Min
     incidentsCreated: 0,
     incidentsSkipped: 0,
     eventsCreated: 0,
+    postmortemsCreated: 0,
     numbers: [],
     incidentsDeleted: 0,
     incidentsKept: 0,
@@ -214,6 +220,8 @@ export async function seedMine(db: PrismaClient, opts: MineOptions): Promise<Min
   const people = [user.id, ...others.map((m) => m.userId)];
   const personAt = (index: number | null) => (index === null ? null : (people[index] ?? user.id));
 
+  const postmortemPlans = seedPostmortemsFor(fixture);
+
   // 5. incidents, one transaction each
   for (const spec of fixture.incidents) {
     const seedKey = seedKeyOf(spec.title);
@@ -227,9 +235,19 @@ export async function seedMine(db: PrismaClient, opts: MineOptions): Promise<Min
       continue;
     }
 
-    const startedAt = new Date(now.getTime() - spec.startedHoursAgo * HOUR);
+    // One resolved incident is given a recent resolution so its postmortem shows as "due soon" (see mine-postmortems.ts).
+    const durationMs = (spec.durationMinutes ?? 60) * MIN;
+    const dueSoon = seedKey === DUE_SOON_KEY && spec.status === "RESOLVED" && !postmortemPlans.has(seedKey);
     const resolvedAt =
-      spec.status === "RESOLVED" ? new Date(startedAt.getTime() + (spec.durationMinutes ?? 60) * MIN) : null;
+      spec.status === "RESOLVED"
+        ? dueSoon
+          ? new Date(now.getTime() - DUE_SOON_RESOLVED_DAYS_AGO * DAY)
+          : new Date(now.getTime() - spec.startedHoursAgo * HOUR + durationMs)
+        : null;
+    const startedAt =
+      dueSoon && resolvedAt
+        ? new Date(resolvedAt.getTime() - durationMs)
+        : new Date(now.getTime() - spec.startedHoursAgo * HOUR);
     const end = (resolvedAt ?? now).getTime();
     const span = end - startedAt.getTime();
     const at = (fraction: number) => new Date(startedAt.getTime() + Math.floor(span * fraction));
@@ -332,6 +350,29 @@ export async function seedMine(db: PrismaClient, opts: MineOptions): Promise<Min
     base.incidentsCreated += 1;
     base.eventsCreated += events.length;
     base.numbers.push(number);
+  }
+
+  // 8. postmortems: published and draft ones for a few incidents, none for the rest (so those show as overdue)
+  for (const spec of fixture.incidents) {
+    const plan = postmortemPlans.get(seedKeyOf(spec.title));
+    if (!plan) continue;
+    const incident = await db.incident.findUnique({
+      where: { workspaceId_seedKey: { workspaceId, seedKey: seedKeyOf(spec.title) } },
+      select: { id: true, number: true, severity: true, resolvedAt: true },
+    });
+    if (!incident) continue;
+    const created = await ensureSeedPostmortem(db, {
+      workspaceId,
+      incident,
+      spec: plan,
+      authorId: personAt(spec.scribe) ?? user.id,
+      publisherId: personAt(spec.commander) ?? user.id,
+      now,
+    });
+    if (created) {
+      base.postmortemsCreated += 1;
+      base.eventsCreated += plan.status === "PUBLISHED" ? 2 : 1;
+    }
   }
 
   return { ...base, cancelled: false, workspaceSlug: workspace.slug };

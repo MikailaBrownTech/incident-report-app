@@ -13,12 +13,14 @@ export type AuditAction =
   | "incident.severity_changed"
   | "incident.role_changed"
   | "incident.deleted"
-  | "incident.note_deleted";
+  | "incident.note_deleted"
+  | "postmortem.published"
+  | "postmortem.unpublished";
 
 export interface AuditEntry {
   actorId: string | null;
   action: AuditAction;
-  targetType: "workspace" | "member" | "invite" | "incident";
+  targetType: "workspace" | "member" | "invite" | "incident" | "postmortem";
   targetId: string;
   metadata?: Record<string, string | number | boolean | null>;
 }

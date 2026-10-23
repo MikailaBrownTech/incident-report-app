@@ -29,21 +29,13 @@ export async function getWorkspaceForMember(slug: string, userId: string) {
   return { workspace, membership: rest };
 }
 
-/** Section order of the system postmortem template; titles and prompts come from the copy dictionary. */
-const DEFAULT_TEMPLATE_SECTIONS = [
-  { key: "CAUSE", position: 0 },
-  { key: "LAST_SIGHTING", position: 1 },
-  { key: "WITNESSES", position: 2 },
-  { key: "LEARNED", position: 3 },
-];
-
 export type CreateWorkspaceResult =
   | { ok: true; workspace: { id: string; name: string; slug: string } }
   | { ok: false; error: SlugProblem | "slug_taken" };
 
 /**
- * One transaction: workspace (skin HAUNTED), OWNER membership, default system postmortem
- * template, default retro rule (severity >= 4, REQUIRED) and the workspace.created audit row.
+ * One transaction: workspace (skin HAUNTED), OWNER membership, default retro rule
+ * (severity >= 4, REQUIRED, due in 5 days; the built-in postmortem templates are global) and the workspace.created audit row.
  */
 export async function createWorkspaceWithOwner(input: {
   userId: string;
@@ -61,10 +53,7 @@ export async function createWorkspaceWithOwner(input: {
           slug: input.slug,
           skin: "HAUNTED",
           memberships: { create: { userId: input.userId, role: "OWNER" } },
-          retroRule: { create: { minSeverity: 4, mode: "REQUIRED" } },
-          postmortemTemplates: {
-            create: { name: "Default", isSystem: true, sections: DEFAULT_TEMPLATE_SECTIONS },
-          },
+          retroRules: { create: { minSeverity: 4, mode: "REQUIRED", dueInDays: 5 } },
         },
         select: { id: true, name: true, slug: true },
       });

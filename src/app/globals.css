@@ -93,3 +93,23 @@ body {
   0%, 93%, 96%, 100% { opacity: 1; }
   94%, 97% { opacity: 0.85; }
 }
+
+/* Printing: dark ink on white paper in either skin, without decoration. The app chrome opts out with print:hidden. */
+@media print {
+  [data-skin="haunted"],
+  [data-skin="professional"] {
+    --bg: #ffffff;
+    --surface: #ffffff;
+    --fg: #000000;
+    --muted: #333333;
+    --accent: #1a1a1a;
+    --accent-fg: #ffffff;
+    --danger: #000000;
+    --success: #000000;
+    --warning: #000000;
+    --border: #888888;
+  }
+  .fog {
+    display: none !important;
+  }
+}

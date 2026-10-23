@@ -1,20 +1,25 @@
 export type SkinKey = "haunted" | "professional";
 
 export type SeverityLevel = 1 | 2 | 3 | 4 | 5;
-export type IncidentStatusKey =
-  | "INVESTIGATING"
-  | "IDENTIFIED"
-  | "MITIGATING"
-  | "RESOLVED";
+export type IncidentStatusKey = "INVESTIGATING" | "IDENTIFIED" | "MITIGATING" | "RESOLVED";
 export type IncidentRoleKey = "COMMANDER" | "SCRIBE" | "COMMS";
 export type WorkspaceRoleKey = "OWNER" | "ADMIN" | "MEMBER";
 export type ActionStatusKey = "OPEN" | "IN_PROGRESS" | "DONE";
 export type PostmortemStatusKey = "DRAFT" | "PUBLISHED";
 export type PostmortemSectionKey =
-  | "CAUSE"
-  | "LAST_SIGHTING"
-  | "WITNESSES"
-  | "LEARNED";
+  | "summary"
+  | "impact"
+  | "root_cause"
+  | "detection"
+  | "response"
+  | "timeline"
+  | "went_well"
+  | "went_wrong"
+  | "lucky"
+  | "lessons";
+export type PostmortemStateKey =
+  "NOT_APPLICABLE" | "SKIPPED" | "OPTIONAL" | "REQUIRED" | "DUE_SOON" | "OVERDUE" | "DRAFT" | "PUBLISHED";
+export type TemplateIdKey = "tpl_standard" | "tpl_quick";
 
 export const EMPTY_KEYS = [
   "incidents",
@@ -41,6 +46,7 @@ export interface CopyDictionary {
     services: string;
     rituals: string;
     myRituals: string;
+    postmortems: string;
     settings: string;
     members: string;
     retroRules: string;
@@ -78,6 +84,98 @@ export interface CopyDictionary {
     sections: Record<PostmortemSectionKey, { title: string; prompt: string }>;
     blamelessNote: string;
     missingForRule: (severityName: string) => string;
+    states: Record<PostmortemStateKey, string>;
+    templates: Record<TemplateIdKey, { name: string; description: string }>;
+    backToIncident: string;
+    start: string;
+    starting: string;
+    startOpenWarning: string;
+    chooseTemplate: string;
+    templateHelp: (name: string) => string;
+    cancel: string;
+    unpublish: string;
+    unpublishConfirmTitle: string;
+    unpublishConfirmBody: string;
+    publishing: string;
+    readOnlyNotice: string;
+    publishedBy: (name: string, when: string) => string;
+    startedBy: (name: string) => string;
+    required: string;
+    optional: string;
+    progress: { empty: string; started: string; complete: string };
+    sectionsNav: string;
+    jumpToSection: string;
+    showPrompt: string;
+    hidePrompt: string;
+    editorLabel: (title: string) => string;
+    missingSections: (titles: string[]) => string;
+    save: {
+      saving: string;
+      saved: (secondsAgo: number) => string;
+      failed: string;
+      unsaved: string;
+    };
+    conflict: { title: string; body: string; keepMine: string; keepMineHelp: string; loadTheirs: string };
+    refreshTimeline: string;
+    refreshTimelineTitle: string;
+    refreshTimelineBody: string;
+    copyMarkdown: string;
+    copied: string;
+    copyFailed: string;
+    print: string;
+    actionItems: { heading: string; placeholder: string };
+    toolbar: {
+      label: string;
+      bold: string;
+      italic: string;
+      code: string;
+      link: string;
+      linkPrompt: string;
+      heading: string;
+      bulletList: string;
+      orderedList: string;
+      quote: string;
+      codeBlock: string;
+    };
+    banner: {
+      required: (days: number) => string;
+      dueSoon: (days: number) => string;
+      overdue: (days: number) => string;
+      draft: string;
+      openHint: string;
+      view: string;
+      continue: string;
+    };
+    dueIn: (days: number) => string;
+    overdueBy: (days: number) => string;
+    noDueDate: string;
+    list: {
+      columns: { incident: string; severity: string; state: string; author: string; due: string; published: string };
+      filterState: string;
+      filterSeverity: string;
+      needsAttention: string;
+      searchLabel: string;
+      searchPlaceholder: string;
+      sortLabel: string;
+      sortOptions: { due: string; severity: string; number: string; published: string };
+      noResults: string;
+      clearFilters: string;
+      loadMore: string;
+      loadFailed: string;
+      retry: string;
+      noAuthor: string;
+    };
+    toasts: {
+      started: string;
+      published: string;
+      unpublished: string;
+      saveFailed: string;
+      publishFailed: string;
+      conflictLoaded: string;
+      timelineRefreshed: string;
+      alreadyExists: string;
+      publishedElsewhere: string;
+    };
   };
   ritual: {
     singular: string;
@@ -446,6 +544,8 @@ export interface CopyDictionary {
       incidentDeleted: string;
       revenantLinked: string;
       postmortemPublished: string;
+      postmortemStarted: (name: string) => string;
+      postmortemUnpublished: string;
       ritualCreated: string;
       retroOverride: string;
       external: string;

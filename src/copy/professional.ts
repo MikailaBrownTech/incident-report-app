@@ -1,5 +1,6 @@
 import type { CopyDictionary } from "./types";
 
+const dayWord = (n: number) => `${n} ${n === 1 ? "day" : "days"}`;
 const plural = (n: number, one: string, many: string) => (n === 1 ? one : many);
 
 /** "A", "A and B", "A, B and C". */
@@ -13,6 +14,7 @@ export const professional = {
     incidents: "Incidents",
     services: "Services",
     rituals: "Action Items",
+    postmortems: "Postmortems",
     myRituals: "My Action Items",
     settings: "Settings",
     members: "Members",
@@ -61,34 +63,180 @@ export const professional = {
     plural: "Postmortems",
     draft: "Draft",
     published: "Published",
-    publish: "Publish postmortem",
+    publish: "Publish",
     statusLabel: { DRAFT: "Draft", PUBLISHED: "Published" },
     sections: {
-      CAUSE: {
-        title: "Root Cause",
-        prompt:
-          "What conditions made this failure possible? Focus on systems and processes, not individuals.",
+      summary: {
+        title: "Summary",
+        prompt: "In a few sentences, what happened and how did it end?",
       },
-      LAST_SIGHTING: {
-        title: "Detection and Timeline",
-        prompt:
-          "How was the problem detected, and what did the signals look like before it was noticed?",
+      impact: {
+        title: "Impact",
+        prompt: "Who or what was affected, for how long, and how badly?",
       },
-      WITNESSES: {
-        title: "People and Systems Involved",
-        prompt:
-          "Which teams, systems, and on-call roles took part in the response? Describe their actions, not their mistakes.",
+      root_cause: {
+        title: "Root cause and contributing factors",
+        prompt: "What did the system allow to happen, and what conditions made it possible?",
       },
-      LEARNED: {
-        title: "Lessons Learned",
-        prompt:
-          "What would make this class of failure less likely or less severe next time?",
+      detection: {
+        title: "How we found out",
+        prompt: "How was the problem detected, and what would have made it easier to catch?",
+      },
+      response: {
+        title: "How we responded",
+        prompt: "How did the response unfold, and what helped or slowed it down?",
+      },
+      timeline: {
+        title: "Key moments",
+        prompt: "Which moments shaped the outcome? Add the key times and decisions.",
+      },
+      went_well: {
+        title: "What went well",
+        prompt: "What worked that we want to keep doing?",
+      },
+      went_wrong: {
+        title: "What went wrong",
+        prompt: "Where did our systems or processes let us down?",
+      },
+      lucky: {
+        title: "Where we got lucky",
+        prompt: "Where did chance help us, and how can we make that luck unnecessary?",
+      },
+      lessons: {
+        title: "What we learned",
+        prompt: "What will we change so this is less likely, or less painful, next time?",
       },
     },
-    blamelessNote:
-      "This postmortem is blameless: describe what happened and why the system allowed it.",
-    missingForRule: (sev) =>
-      `A published postmortem is required for ${sev} incidents before they can be resolved.`,
+    blamelessNote: "Postmortems are blameless: we examine systems and decisions, not individuals.",
+    missingForRule: (sev) => `A published postmortem is required before a ${sev} incident can be resolved.`,
+    states: {
+      NOT_APPLICABLE: "Not applicable",
+      SKIPPED: "Skipped",
+      OPTIONAL: "Optional",
+      REQUIRED: "Required",
+      DUE_SOON: "Due soon",
+      OVERDUE: "Overdue",
+      DRAFT: "Draft",
+      PUBLISHED: "Published",
+    },
+    templates: {
+      tpl_standard: {
+        name: "Standard postmortem",
+        description: "The full review: ten sections, for serious incidents.",
+      },
+      tpl_quick: {
+        name: "Quick review",
+        description: "Three sections for minor incidents: summary, root cause and lessons.",
+      },
+    },
+    backToIncident: "Back to incident",
+    start: "Start postmortem",
+    starting: "Starting...",
+    startOpenWarning: "This incident is still open. You can start now, but the story may not be finished.",
+    chooseTemplate: "Choose a template",
+    templateHelp: (name) => `${name} is suggested for this incident's severity.`,
+    cancel: "Cancel",
+    unpublish: "Unpublish",
+    unpublishConfirmTitle: "Unpublish this postmortem?",
+    unpublishConfirmBody:
+      "It returns to a draft and can be edited again. The change is recorded on the incident timeline.",
+    publishing: "Publishing...",
+    readOnlyNotice: "This postmortem is published and read-only. An admin can unpublish it to make changes.",
+    publishedBy: (name, when) => `Published by ${name} on ${when}`,
+    startedBy: (name) => `Started by ${name}`,
+    required: "Required",
+    optional: "Optional",
+    progress: { empty: "Empty", started: "Started", complete: "Complete" },
+    sectionsNav: "Sections",
+    jumpToSection: "Jump to section",
+    showPrompt: "Show prompt",
+    hidePrompt: "Hide prompt",
+    editorLabel: (title) => `Edit: ${title}`,
+    missingSections: (titles) => `These required sections need more detail: ${list(titles)}.`,
+    save: {
+      saving: "Saving...",
+      saved: (s) => (s < 5 ? "Saved just now" : `Saved ${s}s ago`),
+      failed: "Couldn't save, retrying",
+      unsaved: "Unsaved changes",
+    },
+    conflict: {
+      title: "Someone else changed this postmortem",
+      body: "A newer version was saved while you were editing. Choose which one to keep. Nothing is lost until you decide.",
+      keepMine: "Keep mine (copy my text first)",
+      keepMineHelp:
+        "Your text replaces theirs in the sections you changed. It is copied to the clipboard first, just in case.",
+      loadTheirs: "Load theirs",
+    },
+    refreshTimeline: "Refresh from timeline",
+    refreshTimelineTitle: "Replace the key moments?",
+    refreshTimelineBody: "This replaces what is written here with the incident's current key moments.",
+    copyMarkdown: "Copy as Markdown",
+    copied: "Copied to the clipboard",
+    copyFailed: "Couldn't copy. Select the text and copy it by hand.",
+    print: "Print",
+    actionItems: {
+      heading: "Action items",
+      placeholder: "Action items from this postmortem will be tracked here soon.",
+    },
+    toolbar: {
+      label: "Formatting",
+      bold: "Bold",
+      italic: "Italic",
+      code: "Inline code",
+      link: "Link",
+      linkPrompt: "Link address (http, https or mailto)",
+      heading: "Heading",
+      bulletList: "Bullet list",
+      orderedList: "Numbered list",
+      quote: "Quote",
+      codeBlock: "Code block",
+    },
+    banner: {
+      required: (d) => `Postmortem required, due in ${dayWord(d)}`,
+      dueSoon: (d) => `Postmortem due soon: ${d <= 0 ? "due today" : "due in " + dayWord(d)}`,
+      overdue: (d) => `Postmortem overdue by ${dayWord(d)}`,
+      draft: "A postmortem draft is in progress.",
+      openHint: "You can start a postmortem early, even while the incident is open.",
+      view: "View postmortem",
+      continue: "Continue postmortem",
+    },
+    dueIn: (d) => `in ${dayWord(d)}`,
+    overdueBy: (d) => `${dayWord(d)} overdue`,
+    noDueDate: "No due date",
+    list: {
+      columns: {
+        incident: "Incident",
+        severity: "Severity",
+        state: "State",
+        author: "Author",
+        due: "Due",
+        published: "Published",
+      },
+      filterState: "State",
+      filterSeverity: "Severity",
+      needsAttention: "Needs attention",
+      searchLabel: "Search postmortems",
+      searchPlaceholder: "Search by title or number",
+      sortLabel: "Sort by",
+      sortOptions: { due: "Due date", severity: "Severity", number: "Number", published: "Published date" },
+      noResults: "No postmortems match these filters.",
+      clearFilters: "Clear filters",
+      loadMore: "Load more",
+      loadFailed: "Couldn't load postmortems.",
+      retry: "Try again",
+      noAuthor: "No author",
+    },
+    toasts: {
+      started: "Postmortem started",
+      published: "Postmortem published",
+      unpublished: "Postmortem unpublished",
+      saveFailed: "Couldn't save. Your text is still here",
+      publishFailed: "Couldn't publish the postmortem",
+      conflictLoaded: "The latest version has been loaded",
+      timelineRefreshed: "Key moments refreshed",
+      alreadyExists: "A postmortem already exists. Opening it",
+      publishedElsewhere: "This postmortem was already published by someone else",
+    },
   },
   ritual: {
     singular: "Action Item",
@@ -250,8 +398,7 @@ export const professional = {
     accepting: "Joining…",
     signInToAccept: "Sign in to accept",
     mismatchHeading: "Wrong account",
-    mismatchBody: (invited, current) =>
-      `This invite was sent to ${invited}, but you're signed in as ${current}.`,
+    mismatchBody: (invited, current) => `This invite was sent to ${invited}, but you're signed in as ${current}.`,
     switchAccount: "Sign in with a different account",
     expired: "This invite has expired. Ask for a new one.",
     revoked: "This invite was revoked.",
@@ -396,7 +543,9 @@ export const professional = {
     created: "Service added.",
     renamed: "Service renamed.",
     deleted: (unlinked) =>
-      unlinked > 0 ? `Service deleted and unlinked from ${unlinked} ${unlinked === 1 ? "incident" : "incidents"}.` : "Service deleted.",
+      unlinked > 0
+        ? `Service deleted and unlinked from ${unlinked} ${unlinked === 1 ? "incident" : "incidents"}.`
+        : "Service deleted.",
     nameTaken: "A service with that name already exists.",
     empty: "No services yet. Add the first one above.",
     loadFailed: "Couldn't load services.",
@@ -465,7 +614,8 @@ export const professional = {
       roleUnassigned: (name, role) => `${name} was unassigned as ${role}`,
       roleChanged: "A role was changed",
       servicesAdded: (names) => `${list(names)} ${names.length === 1 ? "was" : "were"} added to affected services`,
-      servicesRemoved: (names) => `${list(names)} ${names.length === 1 ? "was" : "were"} removed from affected services`,
+      servicesRemoved: (names) =>
+        `${list(names)} ${names.length === 1 ? "was" : "were"} removed from affected services`,
       servicesChanged: "Affected services were changed",
       titleChanged: (from, to) => `Title changed from "${from}" to "${to}"`,
       titleEdited: "Title was changed",
@@ -473,6 +623,8 @@ export const professional = {
       incidentDeleted: "Incident was deleted",
       revenantLinked: "Linked to an earlier incident",
       postmortemPublished: "Postmortem was published",
+      postmortemStarted: (name) => `Postmortem started by ${name}`,
+      postmortemUnpublished: "The postmortem was unpublished",
       ritualCreated: "An action item was created",
       retroOverride: "The postmortem requirement was overridden",
       external: "Update from an integration",

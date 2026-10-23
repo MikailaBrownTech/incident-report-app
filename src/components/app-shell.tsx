@@ -43,6 +43,7 @@ export function AppShell({ skin, slug, userEmail, workspaces, children }: AppShe
             items={[
               { href: `${base}/dashboard`, label: t.nav.dashboard },
               { href: `${base}/incidents`, label: t.nav.incidents },
+              { href: `${base}/postmortems`, label: t.nav.postmortems },
               { href: `${base}/settings/services`, label: t.nav.services },
               { href: `${base}/settings`, label: t.nav.settings },
             ]}

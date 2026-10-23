@@ -67,6 +67,8 @@ describe("humanizeEvent: professional skin", () => {
     expect(say("INCIDENT_DELETED", {})).toBe("Incident was deleted");
     expect(say("REVENANT_LINKED", {})).toBe("Linked to an earlier incident");
     expect(say("POSTMORTEM_PUBLISHED", {})).toBe("Postmortem was published");
+    expect(humanizeEvent({ type: "POSTMORTEM_STARTED", payload: {}, actorId: "u1" }, ctx())).toBe("Postmortem started by " + NAMES.u1);
+    expect(say("POSTMORTEM_UNPUBLISHED", {})).toBe("The postmortem was unpublished");
     expect(say("RITUAL_CREATED", {})).toBe("An action item was created");
     expect(say("RETRO_OVERRIDE", {})).toBe("The postmortem requirement was overridden");
     expect(say("EXTERNAL", { anything: 1 })).toBe("Update from an integration");
@@ -154,6 +156,8 @@ describe("humanizeEvent: bad data never crashes", () => {
       "SERVICES_CHANGED",
       "REVENANT_LINKED",
       "POSTMORTEM_PUBLISHED",
+      "POSTMORTEM_STARTED",
+      "POSTMORTEM_UNPUBLISHED",
       "RITUAL_CREATED",
       "RETRO_OVERRIDE",
       "EXTERNAL",

@@ -12,6 +12,8 @@ export interface IncidentRow {
   resolvedAt: string | null;
   services: { id: string; name: string }[];
   commander: { name: string; email: string; image: string | null } | null;
+  /** The incident's postmortem, if it has one; with the workspace's retro rules this gives the row its badge. */
+  postmortemStatus?: "DRAFT" | "PUBLISHED" | null;
 }
 
 const ORDER_FIELD: Record<SortKey, "startedAt" | "severity" | "status" | "number"> = {
@@ -69,6 +71,7 @@ export async function listIncidents(
       status: true,
       startedAt: true,
       resolvedAt: true,
+      postmortem: { select: { status: true } },
       services: { select: { service: { select: { id: true, name: true } } }, orderBy: { service: { name: "asc" } } },
       assignments: {
         where: { role: "COMMANDER" },
@@ -89,6 +92,7 @@ export async function listIncidents(
       resolvedAt: r.resolvedAt?.toISOString() ?? null,
       services: r.services.map((s) => s.service),
       commander: r.assignments[0]?.member.user ?? null,
+      postmortemStatus: r.postmortem?.status ?? null,
     })),
     nextCursor: rows.length > pageSize ? page[page.length - 1].id : null,
   };

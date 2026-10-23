@@ -13,6 +13,8 @@ export interface HumanizeContext {
 export interface HumanizableEvent {
   type: string;
   payload: unknown;
+  /** Who did it; only the "postmortem started" sentence names them. */
+  actorId?: string | null;
 }
 
 const status = z.enum(ALL_STATUSES);
@@ -88,6 +90,10 @@ export function humanizeEvent(event: HumanizableEvent, ctx: HumanizeContext): st
         return e.revenantLinked;
       case "POSTMORTEM_PUBLISHED":
         return e.postmortemPublished;
+      case "POSTMORTEM_STARTED":
+        return e.postmortemStarted(nameOf(event.actorId));
+      case "POSTMORTEM_UNPUBLISHED":
+        return e.postmortemUnpublished;
       case "RITUAL_CREATED":
         return e.ritualCreated;
       case "RETRO_OVERRIDE":

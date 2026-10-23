@@ -7,6 +7,7 @@ import { SeverityBadge, StatusPill } from "@/components/badges";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { dangerButton, inputClass, labelClass, primaryButton, secondaryButton } from "@/components/form";
 import { IncidentTimeline } from "@/components/incident-timeline";
+import { PostmortemPanel } from "@/components/postmortem-panel";
 import { Markdown } from "@/components/markdown";
 import { ServicePicker, type PickerService } from "@/components/service-picker";
 import { LiveDuration, RelativeTime } from "@/components/time-display";
@@ -23,6 +24,8 @@ import {
   type RoleKey,
   type StatusKey,
 } from "@/features/incidents/schema";
+import type { TemplateView } from "@/features/postmortems/sections";
+import type { RuleLike } from "@/features/postmortems/status";
 import type { TimelineFilter, TimelineOrder, TimelinePage } from "@/features/timeline/schema";
 import { api, type ApiResult } from "@/lib/api-client";
 
@@ -35,6 +38,7 @@ interface Props {
   canDelete: boolean;
   currentUserId: string;
   timeline: { page: TimelinePage; filter: TimelineFilter; order: TimelineOrder };
+  postmortem: { status: "DRAFT" | "PUBLISHED" | null; rules: RuleLike[]; templates: TemplateView[] };
 }
 
 type Saved = ApiResult<{ incident: IncidentDetailView }>;
@@ -50,6 +54,7 @@ export function IncidentDetail({
   canDelete,
   currentUserId,
   timeline,
+  postmortem,
 }: Props) {
   const t = useCopy();
   const toast = useToast();
@@ -277,6 +282,14 @@ export function IncidentDetail({
             ) : null}
           </div>
         </header>
+
+        <PostmortemPanel
+          slug={slug}
+          incident={incident}
+          postmortemStatus={postmortem.status}
+          rules={postmortem.rules}
+          templates={postmortem.templates}
+        />
 
         {incident.roles.COMMANDER ? null : (
           <section role="note" className="rounded border border-warning p-4">
