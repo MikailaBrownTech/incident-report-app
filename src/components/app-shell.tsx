@@ -46,6 +46,7 @@ export function AppShell({ skin, slug, userEmail, workspaces, overdueCount = 0, 
               { href: `${base}/dashboard`, label: t.nav.dashboard },
               { href: `${base}/incidents`, label: t.nav.incidents },
               { href: `${base}/postmortems`, label: t.nav.postmortems },
+              { href: `${base}/revenants`, label: t.nav.revenants },
               {
                 href: `${base}/action-items`,
                 label: t.nav.rituals,

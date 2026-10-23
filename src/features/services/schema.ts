@@ -14,4 +14,6 @@ export interface ServiceView {
   openIncidents: number;
   /** All incidents linked to this service (what deleting would unlink). */
   totalIncidents: number;
+  /** Recurrence numbers for the Services page; only set where they were asked for. */
+  stats?: { incidents90: number; chains: number; openRituals: number };
 }

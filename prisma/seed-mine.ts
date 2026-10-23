@@ -79,6 +79,7 @@ async function main() {
   console.log(`Events created:     ${r.eventsCreated}`);
   console.log(`Postmortems created: ${r.postmortemsCreated}`);
   console.log(`Action items created: ${r.actionItemsCreated}`);
+  console.log(`Recurrences linked: ${r.revenantLinksCreated}`);
   console.log(`Incident numbers:   ${r.numbers.length ? r.numbers.join(", ") : "none"}`);
   console.log(`Open: /app/${r.workspaceSlug}/incidents`);
 }

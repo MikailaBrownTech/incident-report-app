@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { ActionItemsPanel } from "@/components/action-items-panel";
+import { AccountabilityBlock } from "@/components/incident-revenants";
 import { SeverityBadge, StatusPill } from "@/components/badges";
 import { PostmortemBadge } from "@/components/postmortem-badge";
 import { PostmortemEditor } from "@/components/postmortem-editor";
@@ -12,6 +13,7 @@ import { useCopy } from "@/copy/provider";
 import type { ActionItemView } from "@/features/action-items/schema";
 import type { PersonView, StatusKey } from "@/features/incidents/schema";
 import type { PostmortemPayload } from "@/features/postmortems/schema";
+import type { Accountability } from "@/features/revenants/types";
 
 interface Props {
   slug: string;
@@ -26,6 +28,10 @@ interface Props {
   members?: PersonView[];
   currentUserId?: string;
   isAdmin?: boolean;
+  /** This incident is a recurrence of an earlier one. */
+  isRevenant?: boolean;
+  /** What earlier occurrences left behind (their postmortems and action items). */
+  earlier?: Accountability | null;
 }
 
 /** The incident header card, then the editor (draft) or the read-only document (published). */
@@ -41,6 +47,8 @@ export function PostmortemPage({
   members = [],
   currentUserId = "",
   isAdmin = false,
+  isRevenant = false,
+  earlier = null,
 }: Props) {
   const t = useCopy();
   const [payload, setPayload] = useState(initial);
@@ -117,6 +125,18 @@ export function PostmortemPage({
           onPublished={setPayload}
           aside={panel}
           actionItemCount={items.length}
+          isRevenant={isRevenant}
+          earlierOpenItems={earlier?.openItems.length ?? 0}
+          above={
+            earlier && earlier.earlier.length > 0 ? (
+              <section aria-labelledby="previous-occurrences" className="space-y-1 rounded border border-border p-4">
+                <h2 id="previous-occurrences" className="text-lg font-semibold">
+                  {t.revenant.editor.heading}
+                </h2>
+                <AccountabilityBlock slug={slug} accountability={earlier} />
+              </section>
+            ) : null
+          }
         />
       )}
     </div>

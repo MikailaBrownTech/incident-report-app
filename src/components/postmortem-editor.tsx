@@ -25,6 +25,12 @@ interface Props {
   aside?: ReactNode;
   /** When it is 0, publishing asks "No action items yet. Publish anyway?" first. Left out: no question. */
   actionItemCount?: number;
+  /** For a recurrence: shows the extra blameless prompt on "what went wrong" (helper text only, never stored). */
+  isRevenant?: boolean;
+  /** How many action items from earlier occurrences are still open; publishing warns (softly) when it is above 0. */
+  earlierOpenItems?: number;
+  /** Shown above the sections: what earlier occurrences left behind. */
+  above?: ReactNode;
 }
 
 type SaveState = "idle" | "dirty" | "saving" | "saved" | "error" | "conflict";
@@ -42,6 +48,9 @@ export function PostmortemEditor({
   autosaveMs = 1500,
   aside,
   actionItemCount,
+  isRevenant = false,
+  earlierOpenItems = 0,
+  above,
 }: Props) {
   const t = useCopy();
   const p = t.postmortem;
@@ -61,6 +70,7 @@ export function PostmortemEditor({
   const [confirmRefresh, setConfirmRefresh] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [askNoItems, setAskNoItems] = useState(false);
+  const [askEarlier, setAskEarlier] = useState(false);
   const [promptOpen, setPromptOpen] = useState<Record<string, boolean>>({});
 
   // What the save logic reads is kept in refs, so a timer or a promise never sees stale values.
@@ -274,11 +284,13 @@ export function PostmortemEditor({
   /** A soft warning, never a block: with no action items, ask once before publishing. */
   function requestPublish() {
     if (actionItemCount === 0) setAskNoItems(true);
+    else if (earlierOpenItems > 0) setAskEarlier(true);
     else void publish();
   }
 
   async function publish() {
     setAskNoItems(false);
+    setAskEarlier(false);
     setPublishing(true);
     setMissing([]);
     const saved = await flush();
@@ -349,6 +361,8 @@ export function PostmortemEditor({
           {publishing ? p.publishing : p.publish}
         </button>
       </div>
+
+      {above}
 
       {missing.length > 0 && (
         <p role="alert" className="rounded border border-danger p-3 text-sm text-danger">
@@ -438,6 +452,11 @@ export function PostmortemEditor({
                 {showPrompt && (
                   <p className="text-sm text-muted">{p.sections[d.key as PostmortemSectionKey]?.prompt}</p>
                 )}
+                {isRevenant && d.key === "went_wrong" && (
+                  <p className="text-sm text-muted" data-testid="revenant-prompt">
+                    {t.revenant.editor.wentWrongPrompt}
+                  </p>
+                )}
                 <RichTextEditor
                   key={`${d.key}-${revisions[d.key] ?? 0}`}
                   doc={sections[d.key]}
@@ -459,8 +478,23 @@ export function PostmortemEditor({
         body={t.ritual.editor.none}
         confirmLabel={t.ritual.editor.publishAnyway}
         pending={publishing}
-        onConfirm={() => void publish()}
+        onConfirm={() => {
+          // the second soft warning, if earlier occurrences also left work undone
+          if (earlierOpenItems > 0) {
+            setAskNoItems(false);
+            setAskEarlier(true);
+          } else void publish();
+        }}
         onCancel={() => setAskNoItems(false)}
+      />
+      <ConfirmDialog
+        open={askEarlier}
+        title={t.revenant.editor.publishWarning(earlierOpenItems)}
+        body={t.revenant.accountability.openHeading}
+        confirmLabel={t.revenant.editor.publishAnyway}
+        pending={publishing}
+        onConfirm={() => void publish()}
+        onCancel={() => setAskEarlier(false)}
       />
       <ConfirmDialog
         open={confirmRefresh}

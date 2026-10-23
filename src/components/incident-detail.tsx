@@ -6,6 +6,7 @@ import { useRef, useState, type FormEvent } from "react";
 import { SeverityBadge, StatusPill } from "@/components/badges";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { dangerButton, inputClass, labelClass, primaryButton, secondaryButton } from "@/components/form";
+import { IncidentRevenants, type RevenantsData } from "@/components/incident-revenants";
 import { IncidentRitualsCard } from "@/components/incident-rituals-card";
 import { IncidentTimeline } from "@/components/incident-timeline";
 import { PostmortemPanel } from "@/components/postmortem-panel";
@@ -43,6 +44,8 @@ interface Props {
   postmortem: { status: "DRAFT" | "PUBLISHED" | null; rules: RuleLike[]; templates: TemplateView[] };
   /** Done of total action items, and how many are overdue. */
   rituals: Progress;
+  /** The chain this incident belongs to, or suggestions while it is unlinked. */
+  revenants?: RevenantsData;
 }
 
 type Saved = ApiResult<{ incident: IncidentDetailView }>;
@@ -60,6 +63,7 @@ export function IncidentDetail({
   timeline,
   postmortem,
   rituals,
+  revenants,
 }: Props) {
   const t = useCopy();
   const toast = useToast();
@@ -490,6 +494,14 @@ export function IncidentDetail({
           hasPostmortem={postmortem.status !== null}
           progress={rituals}
         />
+        {revenants && (
+          <IncidentRevenants
+            slug={slug}
+            incident={{ id: incident.id, number: incident.number }}
+            data={revenants}
+            severityLabels={severityLabels}
+          />
+        )}
       </div>
 
       <ConfirmDialog

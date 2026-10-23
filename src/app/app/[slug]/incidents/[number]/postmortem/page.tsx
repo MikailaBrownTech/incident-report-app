@@ -5,6 +5,7 @@ import { incidentNumberSchema, type StatusKey } from "@/features/incidents/schem
 import { parseListParams } from "@/features/action-items/schema";
 import { listItems } from "@/features/action-items/service";
 import { getPostmortem } from "@/features/postmortems/service";
+import { getAccountability, getChain } from "@/features/revenants/chains";
 import { listMembers } from "@/features/workspaces/queries";
 import { getWorkspaceContext } from "@/server/auth/context";
 import { hasRole } from "@/server/auth/permissions";
@@ -24,6 +25,9 @@ export default async function PostmortemRoute({ params }: PageProps<"/app/[slug]
   const payload = await getPostmortem(ctx, n);
   if (!payload) redirect(`/app/${slug}/incidents/${n}`);
 
+  const incidentRow = await ctx.db.incident.findFirst({ where: { number: n }, select: { id: true } });
+  const chain = incidentRow ? await getChain(ctx.db, incidentRow.id) : null;
+  const accountability = chain && incidentRow ? await getAccountability(ctx.db, chain, incidentRow.id) : null;
   const [items, members] = await Promise.all([
     listItems(ctx, parseListParams({ incident: String(n), sort: "created", limit: "100" })),
     listMembers(ctx.db),
@@ -42,6 +46,8 @@ export default async function PostmortemRoute({ params }: PageProps<"/app/[slug]
       members={members.map(({ userId, name, email, image }) => ({ userId, name, email, image }))}
       currentUserId={ctx.user.id}
       isAdmin={hasRole(ctx.membership.role, "ADMIN")}
+      isRevenant={Boolean(chain && incidentRow && chain.rootId !== incidentRow.id)}
+      earlier={accountability}
     />
   );
 }

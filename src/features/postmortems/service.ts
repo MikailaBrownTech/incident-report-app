@@ -17,6 +17,7 @@ import {
   type ContentProblem,
   type Doc,
 } from "./content";
+import { getChain } from "@/features/revenants/chains";
 import { markdownToDoc, stampUtc } from "./prefill";
 import type { PostmortemPayload, PostmortemView } from "./schema";
 import {
@@ -182,8 +183,22 @@ export async function createPostmortem(ctx: Ctx, number: number, input: { templa
 
   const content = emptyContent();
   const keys = new Set(template.sections.map((s) => s.key));
-  if (keys.has("summary") && found.incident.summary.trim()) {
-    content.sections.summary = markdownToDoc(found.incident.summary);
+  if (keys.has("summary")) {
+    const summary: Doc = found.incident.summary.trim()
+      ? markdownToDoc(found.incident.summary)
+      : { type: "doc", content: [] };
+    // a recurrence: note which earlier occurrences it follows, as one editable line
+    const chain = await getChain(ctx.db, found.incident.id);
+    const at = chain ? chain.members.findIndex((m) => m.id === found.incident.id) : -1;
+    if (chain && at > 0) {
+      const t = getCopy(ctx.skin);
+      const labels = chain.members.slice(0, at).map((m) => t.incident.number(m.number));
+      summary.content = [
+        ...(summary.content ?? []),
+        { type: "paragraph", content: [{ type: "text", text: t.revenant.editor.summaryNote(labels) }] },
+      ];
+    }
+    if ((summary.content ?? []).length > 0) content.sections.summary = summary;
   }
   if (keys.has("timeline")) {
     const doc = await timelineSnapshot(ctx, found.incident.id);

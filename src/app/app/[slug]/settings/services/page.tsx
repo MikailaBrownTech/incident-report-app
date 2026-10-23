@@ -1,6 +1,7 @@
 import { ServicesManager } from "@/components/services-manager";
 import { getCopy } from "@/copy";
 import { listServices } from "@/features/services/service";
+import { getServiceStats } from "@/features/services/stats";
 import { getWorkspaceContext } from "@/server/auth/context";
 import { hasRole } from "@/server/auth/permissions";
 
@@ -8,7 +9,11 @@ export default async function ServicesPage({ params }: PageProps<"/app/[slug]/se
   const { slug } = await params;
   const ctx = await getWorkspaceContext(slug);
   const t = getCopy(ctx.skin);
-  const services = await listServices(ctx.db);
+  const [listed, stats] = await Promise.all([listServices(ctx.db), getServiceStats(ctx.db)]);
+  const services = listed.map((s) => ({
+    ...s,
+    stats: stats.get(s.id) ?? { incidents90: 0, chains: 0, openRituals: 0 },
+  }));
 
   return (
     <div className="space-y-4">

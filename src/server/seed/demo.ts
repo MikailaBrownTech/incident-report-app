@@ -1,6 +1,7 @@
 import type { IncidentStatus, PrismaClient, Prisma } from "@/generated/prisma/client";
 import { ensureSeedActionItems, type SeedActionItem } from "./action-items";
 import { ensureSeedPostmortem, type SeedPostmortem } from "./postmortems";
+import { ensureSeedRevenantLink } from "./revenants";
 
 /**
  * Demo data for local development: one workspace ("demo") with 5 people, 8 services and 15 incidents spread
@@ -411,6 +412,13 @@ const ACTION_ITEMS: Record<number, SeedActionItem[]> = {
   5: [{ title: "Alert on webhook error rate", owner: 4, status: "OPEN", dueInDays: null }],
 };
 
+/** [later incident number, the root's number]. */
+const LINKS: [number, number][] = [
+  [8, 3],
+  [10, 5],
+  [15, 5],
+];
+
 export interface SeedResult {
   workspaceId: string;
   createdIncidents: number;
@@ -638,6 +646,18 @@ export async function seedDemo(db: PrismaClient, options: { now?: Date } = {}): 
         now,
       });
     }
+  }
+
+  // Recurrences: #8 and the later webhook incidents point at their roots. #2 and #11 (search) are left unlinked on purpose.
+  for (const [laterNumber, rootNumber] of LINKS) {
+    const pick = (number: number) =>
+      db.incident.findFirst({
+        where: { workspaceId, number },
+        select: { id: true, number: true, title: true, startedAt: true, revenantOfId: true },
+      });
+    const [later, root] = await Promise.all([pick(laterNumber), pick(rootNumber)]);
+    if (later && root)
+      await ensureSeedRevenantLink(db, { workspaceId, actorId: person("morgan"), incident: later, root, now });
   }
 
   // New incidents declared after seeding must not collide with the seeded numbers.

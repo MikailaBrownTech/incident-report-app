@@ -5,6 +5,7 @@ import { createContext, useContext, useEffect, useMemo, useRef, useState, type F
 import { inputClass, labelClass, primaryButton, secondaryButton } from "@/components/form";
 import { ServicePicker, type PickerService } from "@/components/service-picker";
 import { useToast } from "@/components/toast";
+import { RevenantSuggestions } from "@/components/revenant-suggestions";
 import { severityName, type SeverityLevel, type SeverityOverrides } from "@/copy";
 import { useCopy } from "@/copy/provider";
 import { api } from "@/lib/api-client";
@@ -137,6 +138,7 @@ function DeclareForm({
   const [status, setStatus] = useState<(typeof STATUSES)[number]>("INVESTIGATING");
   const [errors, setErrors] = useState<FieldErrors>({});
   const [pending, setPending] = useState(false);
+  const [revenantOf, setRevenantOf] = useState<number | null>(null);
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -160,6 +162,8 @@ function DeclareForm({
         newServiceNames: picked.newNames,
         startedAt: started.toISOString(),
         status,
+        // chosen by the person from the suggestions; never set automatically
+        ...(revenantOf !== null ? { revenantOfNumber: revenantOf } : {}),
       },
     });
     if (!result.ok) {
@@ -171,6 +175,8 @@ function DeclareForm({
       else if (fe.serviceIds) setErrors({ services: t.declare.invalidService });
       else if (fe.newServiceNames) setErrors({ services: t.declare.serviceNameTaken });
       else if (fe.summary) setErrors({ summary: t.validation.tooLong(20000) });
+      else if (fe.revenantOfNumber) toast.error(t.revenant.toasts.notEarlier);
+      else if (result.code === "not_found") toast.error(t.revenant.toasts.linkFailed);
       else if (result.code === "forbidden") setErrors({ services: t.declare.createServiceForbidden });
       else toast.error(apiErrorMessage(t, result.code));
       return;
@@ -207,6 +213,15 @@ function DeclareForm({
           </p>
         ) : null}
       </div>
+
+      <RevenantSuggestions
+        slug={slug}
+        title={title}
+        serviceIds={picked.selectedIds}
+        severityLabels={severityLabels}
+        selected={revenantOf}
+        onSelect={(c) => setRevenantOf(c ? c.incident.number : null)}
+      />
 
       <div>
         <label htmlFor="declare-summary" className={labelClass}>

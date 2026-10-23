@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { ConfirmDialog } from "@/components/confirm-dialog";
@@ -119,6 +120,19 @@ export function ServicesManager({
                 <th role="columnheader" scope="col" className={rt.th}>
                   {t.services.colOpen}
                 </th>
+                {services.some((s) => s.stats) ? (
+                  <>
+                    <th role="columnheader" scope="col" className={rt.th}>
+                      {t.revenant.services.occurrences90}
+                    </th>
+                    <th role="columnheader" scope="col" className={rt.th}>
+                      {t.revenant.services.chains}
+                    </th>
+                    <th role="columnheader" scope="col" className={rt.th}>
+                      {t.revenant.services.openRituals}
+                    </th>
+                  </>
+                ) : null}
                 <th role="columnheader" scope="col" className={rt.th}>
                   {t.services.colCreated}
                 </th>
@@ -133,7 +147,9 @@ export function ServicesManager({
               {services.map((s) => (
                 <tr key={s.id} role="row" data-testid={`service-${s.slug}`} className={rt.tr}>
                   <td role="cell" className={`${rt.td} font-medium`}>
-                    {s.name}
+                    <Link href={`/app/${slug}/services/${s.slug}`} className="hover:text-accent hover:underline">
+                      {s.name}
+                    </Link>
                   </td>
                   <td role="cell" data-label={t.services.colSlug} className={`${rt.td} font-mono text-muted`}>
                     {s.slug}
@@ -141,6 +157,19 @@ export function ServicesManager({
                   <td role="cell" data-label={t.services.colOpen} className={rt.td}>
                     {s.openIncidents}
                   </td>
+                  {s.stats ? (
+                    <>
+                      <td role="cell" data-label={t.revenant.services.occurrences90} className={rt.td}>
+                        {s.stats.incidents90}
+                      </td>
+                      <td role="cell" data-label={t.revenant.services.chains} className={rt.td}>
+                        {s.stats.chains}
+                      </td>
+                      <td role="cell" data-label={t.revenant.services.openRituals} className={rt.td}>
+                        {s.stats.openRituals}
+                      </td>
+                    </>
+                  ) : null}
                   <td role="cell" data-label={t.services.colCreated} className={`${rt.td} text-muted`}>
                     {formatDate(s.createdAt)}
                   </td>

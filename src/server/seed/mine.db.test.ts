@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 import { docText, isMeaningful, readContent, validateContent } from "@/features/postmortems/content";
 import { BUILT_IN_TEMPLATES } from "@/features/postmortems/sections";
 import { getActionItemState } from "@/features/action-items/state";
+import { getChain } from "@/features/revenants/chains";
+import { findSuspects } from "@/features/revenants/recurring";
+import { scopedDb } from "@/server/db/tenant";
 import { getPostmortemStatus } from "@/features/postmortems/status";
 import { prisma } from "@/server/db/client";
 import { createUser } from "@/test/fixtures";
@@ -60,6 +63,7 @@ describe("seed:mine", () => {
       incidentsSkipped: 0,
       postmortemsCreated: 4,
       actionItemsCreated: 20,
+      revenantLinksCreated: 4,
     });
     expect(r.numbers).toEqual(Array.from({ length: 16 }, (_, i) => i + 1));
     expect((await prisma.workspace.findUniqueOrThrow({ where: { id: ws.id } })).nextIncidentNumber).toBe(17);
@@ -96,7 +100,7 @@ describe("seed:mine", () => {
       // (postmortem events come after the incident is resolved, so they are checked in their own test)
       expect(
         inc.events
-          .filter((e) => !e.type.startsWith("POSTMORTEM_") && !e.type.startsWith("RITUAL_"))
+          .filter((e) => !/^(POSTMORTEM|RITUAL|REVENANT)_/.test(e.type))
           .every((e) => e.occurredAt >= inc.startedAt && e.occurredAt <= (inc.resolvedAt ?? NOW)),
       ).toBe(true);
       const lastStatus = inc.events
@@ -153,6 +157,7 @@ describe("seed:mine", () => {
       roles: await prisma.incidentAssignment.count({ where: { workspaceId: ws.id } }),
       postmortems: await prisma.postmortem.count({ where: { workspaceId: ws.id } }),
       actionItems: await prisma.actionItem.count({ where: { workspaceId: ws.id } }),
+      revenantLinks: await prisma.incident.count({ where: { workspaceId: ws.id, revenantOfId: { not: null } } }),
       audits: await prisma.auditLog.count({ where: { workspaceId: ws.id } }),
       next: (await prisma.workspace.findUniqueOrThrow({ where: { id: ws.id } })).nextIncidentNumber,
     });
@@ -165,11 +170,13 @@ describe("seed:mine", () => {
       eventsCreated: 0,
       postmortemsCreated: 0,
       actionItemsCreated: 0,
+      revenantLinksCreated: 0,
       numbers: [],
     });
     expect(await counts()).toEqual(before);
     expect(before.postmortems).toBe(4);
     expect(before.actionItems).toBe(20);
+    expect(before.revenantLinks).toBe(4);
   });
 
   it("seeds postmortems: two published, two drafts, two overdue, one due soon", async () => {
@@ -359,6 +366,57 @@ describe("seed:mine", () => {
     expect(r.actionItemsCreated).toBe(0);
     expect(await prisma.actionItem.count({ where: { workspaceId: ws.id } })).toBe(19);
     expect((await prisma.actionItem.findUniqueOrThrow({ where: { id: item.id } })).title).toBe("Edited by a person");
+  });
+
+  it("links two recurring chains, leaves the search incidents unlinked as suspects, and records the links on both timelines", async () => {
+    const { me, ws } = await userWithWorkspace("rv-seed");
+    await run(me.email);
+    const byTitle = async (title: string) =>
+      prisma.incident.findFirstOrThrow({ where: { workspaceId: ws.id, title }, include: { revenants: true } });
+
+    const flash = await byTitle("Checkout API timeouts during flash sale");
+    expect(flash.revenantOfId).toBeNull();
+    expect(flash.revenants.map((r) => r.title).sort()).toEqual([
+      "Checkout API timeout spike",
+      "Checkout API timeouts on card payments",
+    ]);
+    const hooks = await byTitle("Payment webhook failures");
+    expect(hooks.revenants.map((r) => r.title).sort()).toEqual([
+      "Payment webhook failures from provider",
+      "Payment webhooks retrying endlessly",
+    ]);
+
+    // chains are one level deep and read oldest first with sensible gaps
+    const chain = (await getChain(scopedDb(ws.id), flash.id))!;
+    expect(chain.members.map((m) => m.title)).toEqual([
+      "Checkout API timeouts during flash sale",
+      "Checkout API timeout spike",
+      "Checkout API timeouts on card payments",
+    ]);
+    expect(chain.members.every((m, i) => i === 0 || (m.gapDays ?? 0) > 0)).toBe(true);
+
+    // the linking is on both timelines, once each
+    expect(await prisma.event.count({ where: { workspaceId: ws.id, type: "REVENANT_LINKED" } })).toBe(8);
+    expect(await prisma.event.count({ where: { incidentId: flash.id, type: "REVENANT_LINKED" } })).toBe(2);
+    expect(await prisma.auditLog.count({ where: { workspaceId: ws.id, action: "incident.revenant_linked" } })).toBe(4);
+
+    // the two search incidents stay unlinked, and are suspects
+    const older = await byTitle("Search results returning stale data");
+    const newer = await byTitle("Search showing stale inventory again");
+    expect([older.revenantOfId, newer.revenantOfId, older.revenants.length, newer.revenants.length]).toEqual([
+      null,
+      null,
+      0,
+      0,
+    ]);
+    const suspects = await findSuspects(scopedDb(ws.id), 20, NOW);
+    expect(suspects.map((s) => [s.incident.title, s.target.title])).toContainEqual([newer.title, older.title]);
+    // the accountability story is real: the chain's root has a postmortem with a mix of action items
+    const items = await prisma.actionItem.findMany({ where: { incidentId: flash.id } });
+    expect(items.some((i) => i.status === "DONE")).toBe(true);
+    expect(items.some((i) => (i.status === "OPEN" || i.status === "IN_PROGRESS") && i.dueDate && i.dueDate < NOW)).toBe(
+      true,
+    );
   });
 
   it("reuses services that already exist, and never resurrects a deleted incident", async () => {

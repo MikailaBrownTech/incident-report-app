@@ -7,6 +7,7 @@ import { DUE_SOON_KEY, DUE_SOON_RESOLVED_DAYS_AGO, seedPostmortemsFor } from "./
 import { ensureSeedActionItems } from "./action-items";
 import { MINE_ACTION_ITEMS } from "./mine-action-items";
 import { ensureSeedPostmortem } from "./postmortems";
+import { ensureSeedRevenantLink } from "./revenants";
 
 /**
  * Loads `prisma/seed-incidents.json` into the signed-in user's own workspace (`pnpm seed:mine`).
@@ -98,6 +99,7 @@ export interface MineResult {
   eventsCreated: number;
   postmortemsCreated: number;
   actionItemsCreated: number;
+  revenantLinksCreated: number;
   numbers: number[];
   incidentsDeleted: number;
   incidentsKept: number;
@@ -144,6 +146,7 @@ export async function seedMine(db: PrismaClient, opts: MineOptions): Promise<Min
     eventsCreated: 0,
     postmortemsCreated: 0,
     actionItemsCreated: 0,
+    revenantLinksCreated: 0,
     numbers: [],
     incidentsDeleted: 0,
     incidentsKept: 0,
@@ -399,8 +402,34 @@ export async function seedMine(db: PrismaClient, opts: MineOptions): Promise<Min
     }
   }
 
+  // 10. recurrences: two chains are linked; the two search incidents are deliberately left unlinked, so they show up as
+  // suggestions and under "Unlinked suspects"
+  for (const [laterKey, rootKey] of REVENANT_LINKS) {
+    const [later, root] = await Promise.all(
+      [laterKey, rootKey].map((seedKey) =>
+        db.incident.findUnique({
+          where: { workspaceId_seedKey: { workspaceId, seedKey } },
+          select: { id: true, number: true, title: true, startedAt: true, revenantOfId: true },
+        }),
+      ),
+    );
+    if (!later || !root) continue;
+    if (await ensureSeedRevenantLink(db, { workspaceId, actorId: user.id, incident: later, root, now })) {
+      base.revenantLinksCreated += 1;
+      base.eventsCreated += 2;
+    }
+  }
+
   return { ...base, cancelled: false, workspaceSlug: workspace.slug };
 }
+
+/** [later incident, the root it recurs] by seed key. */
+const REVENANT_LINKS: [string, string][] = [
+  ["checkout-api-timeout-spike", "checkout-api-timeouts-during-flash-sale"],
+  ["checkout-api-timeouts-on-card-payments", "checkout-api-timeouts-during-flash-sale"],
+  ["payment-webhooks-retrying-endlessly", "payment-webhook-failures"],
+  ["payment-webhook-failures-from-provider", "payment-webhook-failures"],
+];
 
 /** The normal workspace-creation path (OWNER membership, default template, retro rule, audit row). */
 async function createDemoWorkspace(db: PrismaClient, userId: string) {

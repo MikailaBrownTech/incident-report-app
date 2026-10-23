@@ -115,7 +115,15 @@ describe("demo seed", () => {
       include: {
         events: {
           where: {
-            type: { notIn: ["POSTMORTEM_STARTED", "POSTMORTEM_PUBLISHED", "RITUAL_CREATED", "RITUAL_COMPLETED"] },
+            type: {
+              notIn: [
+                "POSTMORTEM_STARTED",
+                "POSTMORTEM_PUBLISHED",
+                "RITUAL_CREATED",
+                "RITUAL_COMPLETED",
+                "REVENANT_LINKED",
+              ],
+            },
           },
           orderBy: { occurredAt: "asc" },
         },
@@ -229,6 +237,22 @@ describe("demo seed", () => {
     const members = new Set((await prisma.membership.findMany({ where: { workspaceId: wsId } })).map((m) => m.userId));
     expect(items.every((i) => members.has(i.ownerId))).toBe(true);
     expect(items.filter((i) => i.status === "WONT_DO").every((i) => i.wontDoReason)).toBe(true);
+  });
+
+  it("links the repeat incidents to their roots and leaves the search pair unlinked", async () => {
+    const rows = await prisma.incident.findMany({
+      where: { workspaceId: wsId },
+      select: { number: true, revenantOfId: true },
+    });
+    const idOf = Object.fromEntries(
+      (await prisma.incident.findMany({ where: { workspaceId: wsId } })).map((i) => [i.number, i.id]),
+    );
+    const rootOf = Object.fromEntries(rows.map((r) => [r.number, r.revenantOfId]));
+    expect(rootOf[8]).toBe(idOf[3]);
+    expect(rootOf[10]).toBe(idOf[5]);
+    expect(rootOf[15]).toBe(idOf[5]);
+    for (const n of [2, 11, 3, 5]) expect(rootOf[n], `#${n} stays a root or standalone`).toBeNull();
+    expect(await prisma.event.count({ where: { workspaceId: wsId, type: "REVENANT_LINKED" } })).toBe(6);
   });
 
   it("includes look-alike titles that trigram matching actually pairs up", async () => {
