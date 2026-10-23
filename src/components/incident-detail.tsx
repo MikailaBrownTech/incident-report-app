@@ -179,7 +179,15 @@ export function IncidentDetail({
     const result = await api<{ summary: string }>(`${base}/ai-summary`, { method: "POST" });
     setDrafting(false);
     if (!result.ok) {
-      toast.error(result.code === "ai_unavailable" ? t.incidentDetail.aiUnavailable : t.incidentDetail.aiFailed);
+      toast.error(
+        result.code === "ai_unavailable"
+          ? t.incidentDetail.aiUnavailable
+          : result.code === "ai_disabled"
+            ? t.incidentDetail.aiDisabled
+            : result.code === "rate_limited"
+              ? t.incidentDetail.aiRateLimited
+              : t.incidentDetail.aiFailed,
+      );
       return;
     }
     setSummaryDraft(result.data.summary);

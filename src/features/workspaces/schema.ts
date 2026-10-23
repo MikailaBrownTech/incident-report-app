@@ -8,8 +8,14 @@ export const inviteRoleSchema = z.enum(["ADMIN", "MEMBER"]);
 
 export const createWorkspaceBody = z.object({ name: workspaceNameSchema, slug: slugSchema });
 export const updateWorkspaceBody = z
-  .object({ name: workspaceNameSchema.optional(), skin: z.enum(["haunted", "professional"]).optional() })
-  .refine((v) => v.name !== undefined || v.skin !== undefined, { message: "nothing_to_update" });
+  .object({
+    name: workspaceNameSchema.optional(),
+    skin: z.enum(["haunted", "professional"]).optional(),
+    aiEnabled: z.boolean().optional(),
+  })
+  .refine((v) => v.name !== undefined || v.skin !== undefined || v.aiEnabled !== undefined, {
+    message: "nothing_to_update",
+  });
 export const changeRoleBody = z.object({ role: roleSchema });
 export const createInviteBody = z.object({ email: emailSchema, role: inviteRoleSchema });
 export const acceptInviteBody = z.object({ token: z.string().min(10).max(200) });

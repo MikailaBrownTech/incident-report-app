@@ -410,6 +410,9 @@ export interface CopyDictionary {
     heading: string;
     general: string;
     saved: string;
+    aiHeading: string;
+    aiLabel: string;
+    aiHint: string;
     workspaceName: string;
     skin: string;
     skinHaunted: string;
@@ -629,6 +632,8 @@ export interface CopyDictionary {
     aiDrafting: string;
     aiFailed: string;
     aiUnavailable: string;
+    aiDisabled: string;
+    aiRateLimited: string;
     editSummary: string;
     editTitle: string;
     titleLabel: string;

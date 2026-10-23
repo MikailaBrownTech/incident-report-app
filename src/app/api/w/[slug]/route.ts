@@ -26,12 +26,14 @@ export const PATCH = handle(async (request: Request, { params }: RouteContext<"/
 
   if (body.name !== undefined) ctx.assert("workspace.rename");
   if (body.skin !== undefined) ctx.assert("skin.update");
+  if (body.aiEnabled !== undefined) ctx.assert("workspace.rename"); // owners and admins
 
   const updated = await ctx.db.workspace.update({
     where: { id: ctx.workspace.id },
     data: {
       ...(body.name !== undefined ? { name: body.name } : {}),
       ...(body.skin !== undefined ? { skin: toSkinEnum(body.skin) } : {}),
+      ...(body.aiEnabled !== undefined ? { aiEnabled: body.aiEnabled } : {}),
     },
   });
   return json(view({ workspace: updated, membership: ctx.membership }));

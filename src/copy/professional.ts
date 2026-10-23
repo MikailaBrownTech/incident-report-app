@@ -156,7 +156,7 @@ export const professional = {
     missingSections: (titles) => `These required sections need more detail: ${list(titles)}.`,
     save: {
       saving: "Saving...",
-      saved: (s) => (s < 5 ? "Saved just now" : `Saved ${s}s ago`),
+    saved: (s) => (s < 5 ? "Saved just now" : `Saved ${s}s ago`),
       failed: "Couldn't save, retrying",
       unsaved: "Unsaved changes",
     },
@@ -526,6 +526,9 @@ export const professional = {
   settings: {
     heading: "Settings",
     general: "General",
+    aiHeading: "AI assistance",
+    aiLabel: "Allow AI-drafted summaries",
+    aiHint: "Drafting sends the incident's title, notes and timeline to Anthropic. Members can edit the draft before saving.",
     saved: "Changes saved.",
     workspaceName: "Workspace name",
     skin: "Appearance",
@@ -745,6 +748,8 @@ export const professional = {
     aiDrafting: "Drafting...",
     aiFailed: "The AI request failed. Try again.",
     aiUnavailable: "AI is not set up: no API key is configured.",
+    aiDisabled: "An admin has turned AI off for this workspace.",
+    aiRateLimited: "Too many AI requests. Try again in a while.",
     addSummary: "Add a summary",
     editSummary: "Edit summary",
     editTitle: "Edit title",

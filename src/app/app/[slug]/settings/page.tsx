@@ -1,3 +1,4 @@
+import { AiToggle } from "@/components/ai-toggle";
 import { SkinToggle } from "@/components/skin-toggle";
 import { WorkspaceNameForm } from "@/components/workspace-name-form";
 import { getCopy } from "@/copy";
@@ -16,6 +17,8 @@ export default async function SettingsPage({ params }: PageProps<"/app/[slug]/se
         <h2 className="text-lg font-semibold">{t.settings.skin}</h2>
         <SkinToggle skin={ctx.skin} workspaceSlug={slug} />
       </section>
+
+      <AiToggle slug={slug} enabled={ctx.workspace.aiEnabled} canEdit={ctx.can("workspace.rename")} />
 
       <p className="text-sm text-muted">{t.settings.planLine(t.settings.planName[ctx.workspace.plan])}</p>
     </div>

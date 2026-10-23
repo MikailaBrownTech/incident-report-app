@@ -155,7 +155,7 @@ export const haunted = {
     missingSections: (titles) => `These required sections still need more words: ${list(titles)}.`,
     save: {
       saving: "Saving...",
-      saved: (s) => (s < 5 ? "Saved just now" : `Saved ${s}s ago`),
+    saved: (s) => (s < 5 ? "Saved just now" : `Saved ${s}s ago`),
       failed: "Couldn't save, retrying",
       unsaved: "Unsaved changes",
     },
@@ -534,6 +534,9 @@ export const haunted = {
   settings: {
     heading: "Settings",
     general: "General",
+    aiHeading: "Spirit assistance",
+    aiLabel: "Let the spirits draft summaries",
+    aiHint: "Drafting sends the haunting's title, notes and timeline to Anthropic. Members can then edit before saving.",
     saved: "It is sealed.",
     workspaceName: "Name of the crypt",
     skin: "Atmosphere",
@@ -753,6 +756,8 @@ export const haunted = {
     aiDrafting: "The spirits are writing...",
     aiFailed: "The spirits did not answer. Try again.",
     aiUnavailable: "The spirits are not summoned here yet: no AI key is set.",
+    aiDisabled: "An admin has banished the spirits from this crypt.",
+    aiRateLimited: "The spirits are tired. Try again in a while.",
     addSummary: "Describe the haunting",
     editSummary: "Edit summary",
     editTitle: "Edit title",

@@ -98,6 +98,7 @@ model Workspace {
   skin               Skin     @default(HAUNTED)
   severityLabels     Json? // {"1": "Custom name", ...} overrides skin defaults
   nextIncidentNumber Int      @default(1) // atomically incremented per workspace
+  aiEnabled          Boolean  @default(true) // admins can switch the AI features off
   createdAt          DateTime @default(now())
 
   memberships         Membership[]
