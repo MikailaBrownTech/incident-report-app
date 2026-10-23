@@ -94,6 +94,10 @@ export function humanizeEvent(event: HumanizableEvent, ctx: HumanizeContext): st
         return e.postmortemStarted(nameOf(event.actorId));
       case "POSTMORTEM_UNPUBLISHED":
         return e.postmortemUnpublished;
+      case "RITUAL_COMPLETED": {
+        const p = z.object({ title: text }).safeParse(event.payload);
+        return p.success ? e.ritualCompleted(p.data.title) : e.generic(readable(event.type));
+      }
       case "RITUAL_CREATED":
         return e.ritualCreated;
       case "RETRO_OVERRIDE":

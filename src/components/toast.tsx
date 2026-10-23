@@ -4,22 +4,27 @@ import { createContext, useCallback, useContext, useMemo, useState, type ReactNo
 import { useCopy } from "@/copy/provider";
 
 type Kind = "success" | "error";
+export interface ToastAction {
+  label: string;
+  onClick: () => void;
+}
 interface ToastItem {
   id: number;
   kind: Kind;
   message: string;
+  action?: ToastAction;
 }
 
-const ToastContext = createContext<((kind: Kind, message: string) => void) | null>(null);
+const ToastContext = createContext<((kind: Kind, message: string, action?: ToastAction) => void) | null>(null);
 
 /** Success/error toasts in a polite live region; each disappears after a few seconds. */
 export function ToastProvider({ children }: { children: ReactNode }) {
   const t = useCopy();
   const [items, setItems] = useState<ToastItem[]>([]);
 
-  const push = useCallback((kind: Kind, message: string) => {
+  const push = useCallback((kind: Kind, message: string, action?: ToastAction) => {
     const id = Date.now() + Math.random();
-    setItems((current) => [...current, { id, kind, message }]);
+    setItems((current) => [...current, { id, kind, message, action }]);
     setTimeout(() => setItems((current) => current.filter((i) => i.id !== id)), kind === "error" ? 8000 : 5000);
   }, []);
 
@@ -40,6 +45,18 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             }`}
           >
             {item.message}
+            {item.action && (
+              <button
+                type="button"
+                className="ml-3 font-semibold underline"
+                onClick={() => {
+                  item.action!.onClick();
+                  setItems((current) => current.filter((i) => i.id !== item.id));
+                }}
+              >
+                {item.action.label}
+              </button>
+            )}
           </div>
         ))}
       </div>
@@ -52,7 +69,7 @@ export function useToast() {
   if (!push) throw new Error("useToast must be used inside <ToastProvider>");
   return useMemo(
     () => ({
-      success: (message: string) => push("success", message),
+      success: (message: string, action?: ToastAction) => push("success", message, action),
       error: (message: string) => push("error", message),
     }),
     [push],

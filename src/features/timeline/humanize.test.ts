@@ -70,6 +70,8 @@ describe("humanizeEvent: professional skin", () => {
     expect(humanizeEvent({ type: "POSTMORTEM_STARTED", payload: {}, actorId: "u1" }, ctx())).toBe("Postmortem started by " + NAMES.u1);
     expect(say("POSTMORTEM_UNPUBLISHED", {})).toBe("The postmortem was unpublished");
     expect(say("RITUAL_CREATED", {})).toBe("An action item was created");
+    expect(say("RITUAL_COMPLETED", { title: "Add an alert" })).toBe("Action item completed: Add an alert");
+    expect(say("RITUAL_COMPLETED", null)).toBe("Update: ritual completed"); // malformed payload falls back
     expect(say("RETRO_OVERRIDE", {})).toBe("The postmortem requirement was overridden");
     expect(say("EXTERNAL", { anything: 1 })).toBe("Update from an integration");
   });
@@ -159,6 +161,7 @@ describe("humanizeEvent: bad data never crashes", () => {
       "POSTMORTEM_STARTED",
       "POSTMORTEM_UNPUBLISHED",
       "RITUAL_CREATED",
+      "RITUAL_COMPLETED",
       "RETRO_OVERRIDE",
       "EXTERNAL",
     ];

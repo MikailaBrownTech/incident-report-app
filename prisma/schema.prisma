@@ -193,6 +193,7 @@ model Incident {
   assignments IncidentAssignment[]
   events      Event[]
   postmortem  Postmortem?
+  actionItems ActionItem[]
 
   @@unique([workspaceId, number])
   @@unique([workspaceId, seedKey])
@@ -248,6 +249,7 @@ enum EventType {
   REVENANT_LINKED
   POSTMORTEM_PUBLISHED
   RITUAL_CREATED
+  RITUAL_COMPLETED
   POSTMORTEM_STARTED
   POSTMORTEM_UNPUBLISHED
   RETRO_OVERRIDE
@@ -339,24 +341,36 @@ enum ActionStatus {
   OPEN
   IN_PROGRESS
   DONE
+  WONT_DO
 }
 
 // "Ritual" in the haunted skin.
 model ActionItem {
-  id           String       @id @default(cuid())
-  workspaceId  String
-  postmortemId String
-  title        String
-  description  String       @default("")
-  ownerId      String // plain id so finished rituals keep their history after a member leaves; M4 validates owner is a current member
-  dueDate      DateTime
-  status       ActionStatus @default(OPEN)
-  completedAt  DateTime?
-  createdAt    DateTime     @default(now())
-  postmortem   Postmortem   @relation(fields: [postmortemId, workspaceId], references: [id, workspaceId], onDelete: Cascade)
+  id               String       @id @default(cuid())
+  workspaceId      String
+  postmortemId     String
+  incidentId       String // denormalised from the postmortem, for fast filtering and to hide soft-deleted incidents' items
+  title            String
+  description      String       @default("")
+  ownerId          String // plain id so finished rituals keep their history after a member leaves; validated as a current member on write
+  createdById      String
+  dueDate          DateTime?    @db.Date // a calendar date, no time
+  status           ActionStatus @default(OPEN)
+  wontDoReason     String?
+  completedAt      DateTime?
+  /// Fractional-indexing key ordering cards within a status column (byte order: the column is COLLATE "C" in the migration).
+  position         String       @default("a0")
+  externalProvider String? // extension point for Jira / Linear / Asana sync; unused
+  externalUrl      String?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @default(now()) @updatedAt
+  postmortem       Postmortem   @relation(fields: [postmortemId, workspaceId], references: [id, workspaceId], onDelete: Cascade)
+  incident         Incident     @relation(fields: [incidentId, workspaceId], references: [id, workspaceId], onDelete: Cascade)
 
-  @@index([workspaceId, ownerId, status])
-  @@index([workspaceId, status, dueDate]) // overdue = status != DONE AND dueDate < now()
+  @@index([workspaceId, status, dueDate]) // overdue = open or in progress AND dueDate < today
+  @@index([ownerId, status])
+  @@index([postmortemId])
+  @@index([workspaceId, status, position])
 }
 
 // OFF and RECOMMENDED predate M4 and are migrated to OPTIONAL; the app only uses REQUIRED, OPTIONAL and SKIP.

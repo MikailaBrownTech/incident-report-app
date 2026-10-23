@@ -59,6 +59,8 @@ export async function createTenant(label: string) {
     data: {
       workspaceId: w,
       postmortemId: postmortem.id,
+      incidentId: incident.id,
+      createdById: owner.id,
       title: `${label} ritual`,
       ownerId: owner.id,
       dueDate: new Date(Date.now() + 86_400_000),

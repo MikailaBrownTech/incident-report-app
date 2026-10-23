@@ -125,7 +125,7 @@ export async function removeMember(ctx: Ctx, userId: string): Promise<Result<{ l
     const left = userId === ctx.user.id;
     if (!left && !canRemoveMember(ctx.membership.role, target.role)) return { ok: false, error: "forbidden" };
     if (target.role === "OWNER" && (await ownerCount(tx)) <= 1) return { ok: false, error: "last_owner" };
-    if (await tx.actionItem.count({ where: { ownerId: userId, status: { not: "DONE" } } })) {
+    if (await tx.actionItem.count({ where: { ownerId: userId, status: { notIn: ["DONE", "WONT_DO"] } } })) {
       return { ok: false, error: "has_rituals" };
     }
     await tx.membership.delete({ where: { id: target.id } });
