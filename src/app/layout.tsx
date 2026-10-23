@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { IBM_Plex_Sans, IM_Fell_English } from "next/font/google";
 import { ToastProvider } from "@/components/toast";
 import { CopyProvider } from "@/copy/provider";
@@ -23,6 +23,13 @@ const fell = IM_Fell_English({
 export async function generateMetadata(): Promise<Metadata> {
   const { brand } = getCopy(await getSkin());
   return { title: brand.name, description: brand.tagline };
+}
+
+export async function generateViewport(): Promise<Viewport> {
+  const skin = await getSkin();
+  return skin === "haunted"
+    ? { colorScheme: "dark", themeColor: "#120b1c" }
+    : { colorScheme: "light", themeColor: "#f6f7f5" };
 }
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {

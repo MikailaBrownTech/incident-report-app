@@ -4,22 +4,24 @@
  */
 export const skinTokens = {
   haunted: {
-    ground: "#17231f",
-    surface: "#1e2d28",
-    raised: "#26382f",
-    rule: "#34493f",
-    text: "#e8e2d0",
-    textMuted: "#9aa79f",
-    accent: "#e3a857",
-    accentText: "#17231f",
-    ok: "#5fa391",
-    warn: "#e3a857",
-    danger: "#ee6c4f",
-    sev1: "#8fa3a8",
-    sev2: "#5fa391",
-    sev3: "#e3a857",
-    sev4: "#e2723a",
-    sev5: "#d9433f",
+    ground: "#120b1c",
+    surface: "#1b1229",
+    raised: "#261a38",
+    rule: "#3a2a52",
+    text: "#f1e9da",
+    textMuted: "#a99bc0",
+    accent: "#ff7a1a",
+    accentText: "#14090a",
+    accentSoft: "rgba(255,122,26,0.14)",
+    link: "#b88cff",
+    ok: "#8be04a",
+    warn: "#ffc83d",
+    danger: "#ff3b5c",
+    sev1: "#7c8db5",
+    sev2: "#8be04a",
+    sev3: "#ffc83d",
+    sev4: "#ff7a1a",
+    sev5: "#ff3b5c",
   },
   professional: {
     ground: "#f6f7f5",
@@ -30,6 +32,8 @@ export const skinTokens = {
     textMuted: "#566660",
     accent: "#1f6f5c",
     accentText: "#ffffff",
+    accentSoft: "rgba(31,111,92,0.12)",
+    link: "#1f6f5c",
     ok: "#1f6f5c",
     warn: "#9a6300",
     danger: "#b5301f",
@@ -44,7 +48,7 @@ export const skinTokens = {
 export type TokenName = keyof (typeof skinTokens)["haunted"];
 
 const PAGE: TokenName[] = ["ground", "surface"];
-const TEXT_TOKENS: TokenName[] = ["text", "textMuted", "accent", "ok", "warn", "danger"];
+const TEXT_TOKENS: TokenName[] = ["text", "textMuted", "accent", "link", "ok", "warn", "danger"];
 const SEVERITY: TokenName[] = ["sev1", "sev2", "sev3", "sev4", "sev5"];
 
 /**
@@ -56,6 +60,7 @@ export const contrastPairs: ReadonlyArray<readonly [TokenName, TokenName, number
   ...TEXT_TOKENS.flatMap((fg) => PAGE.map((bg) => [fg, bg, 4.5] as const)),
   ["text", "raised", 4.5],
   ["textMuted", "raised", 4.5],
+  ["link", "raised", 4.5],
   ["accentText", "accent", 4.5],
   ...SEVERITY.flatMap((fg) => PAGE.map((bg) => [fg, bg, 3] as const)),
 ];

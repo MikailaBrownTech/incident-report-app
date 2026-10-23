@@ -2,25 +2,28 @@
 
 /* Skin tokens. Keep in sync with src/styles/tokens.ts (tokens.test.ts enforces it). */
 [data-skin="haunted"] {
-  --ground: #17231f;
-  --surface: #1e2d28;
-  --raised: #26382f;
-  --rule: #34493f;
-  --text: #e8e2d0;
-  --text-muted: #9aa79f;
-  --accent: #e3a857;
-  --accent-text: #17231f;
-  --ok: #5fa391;
-  --warn: #e3a857;
-  --danger: #ee6c4f;
-  --sev-1: #8fa3a8;
-  --sev-2: #5fa391;
-  --sev-3: #e3a857;
-  --sev-4: #e2723a;
-  --sev-5: #d9433f;
+  --ground: #120b1c;
+  --surface: #1b1229;
+  --raised: #261a38;
+  --rule: #3a2a52;
+  --text: #f1e9da;
+  --text-muted: #a99bc0;
+  --accent: #ff7a1a;
+  --accent-text: #14090a;
+  --accent-soft: rgba(255,122,26,0.14);
+  --link: #b88cff;
+  --ok: #8be04a;
+  --warn: #ffc83d;
+  --danger: #ff3b5c;
+  --sev-1: #7c8db5;
+  --sev-2: #8be04a;
+  --sev-3: #ffc83d;
+  --sev-4: #ff7a1a;
+  --sev-5: #ff3b5c;
   --display-font: var(--font-fell), "Libre Caslon Text", Georgia, serif;
   --display-tracking: 0;
-  --pop-shadow: 0 8px 24px rgb(10 18 15 / 0.55);
+  --pop-shadow: 0 8px 24px rgb(8 4 14 / 0.6);
+  color-scheme: dark;
 }
 
 [data-skin="professional"] {
@@ -32,6 +35,8 @@
   --text-muted: #566660;
   --accent: #1f6f5c;
   --accent-text: #ffffff;
+  --accent-soft: rgba(31,111,92,0.12);
+  --link: #1f6f5c;
   --ok: #1f6f5c;
   --warn: #9a6300;
   --danger: #b5301f;
@@ -43,6 +48,7 @@
   --display-font: var(--font-plex), system-ui, sans-serif;
   --display-tracking: -0.015em;
   --pop-shadow: 0 8px 24px rgb(27 36 32 / 0.16);
+  color-scheme: light;
 }
 
 /* Older token names stay as aliases so existing utilities keep working. `field` is the border of inputs: it must reach 3:1. */
@@ -52,6 +58,7 @@
   --muted: var(--text-muted);
   --border: var(--rule);
   --field: var(--text-muted);
+  --focus: var(--link);
   --success: var(--ok);
   --warning: var(--warn);
   --accent-fg: var(--accent-text);
@@ -67,6 +74,8 @@
   --color-muted: var(--muted);
   --color-accent: var(--accent);
   --color-accent-fg: var(--accent-fg);
+  --color-accent-soft: var(--accent-soft);
+  --color-link: var(--link);
   --color-danger: var(--danger);
   --color-success: var(--success);
   --color-warning: var(--warning);
@@ -139,8 +148,79 @@ textarea {
 }
 
 :focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--focus);
   outline-offset: 2px;
+}
+
+::selection {
+  background: var(--accent-soft);
+  color: var(--text);
+}
+
+* {
+  scrollbar-color: var(--rule) var(--ground);
+}
+
+/* Haunted palette roles. Pumpkin (accent) is for the primary action, the active nav item and key numbers only: links,
+   selected chips, tabs and status badges use the spectral purple (link) instead. Scoped here so components stay as they are. */
+[data-skin="haunted"] a[class~="text-accent"],
+[data-skin="haunted"] a[class~="hover:text-accent"]:hover {
+  color: var(--link);
+}
+/* The active nav item keeps pumpkin. */
+[data-skin="haunted"] a[class~="text-accent"][class~="bg-surface"] {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+[data-skin="haunted"] [class*="hover:border-accent"]:hover {
+  border-color: var(--link);
+}
+[data-skin="haunted"] .rounded-tag.bg-accent {
+  background: color-mix(in srgb, var(--link) 20%, transparent);
+  border-color: var(--link);
+  color: var(--text);
+}
+[data-skin="haunted"] span.border-accent.text-accent {
+  color: var(--link);
+  background: color-mix(in srgb, var(--link) 14%, transparent);
+  border-color: color-mix(in srgb, var(--link) 40%, transparent);
+}
+[data-skin="haunted"] span.border-success.text-success {
+  background: color-mix(in srgb, var(--ok) 14%, transparent);
+  border-color: color-mix(in srgb, var(--ok) 40%, transparent);
+}
+[data-skin="haunted"] .border-b-2.border-accent {
+  border-color: var(--link);
+}
+[data-skin="haunted"] [data-severity] {
+  background: color-mix(in srgb, var(--sev-color) 14%, transparent);
+}
+[data-skin="haunted"] [data-severity="1"] { --sev-color: var(--sev-1); }
+[data-skin="haunted"] [data-severity="2"] { --sev-color: var(--sev-2); }
+[data-skin="haunted"] [data-severity="3"] { --sev-color: var(--sev-3); }
+[data-skin="haunted"] [data-severity="4"] { --sev-color: var(--sev-4); }
+[data-skin="haunted"] [data-severity="5"] { --sev-color: var(--sev-5); }
+[data-skin="haunted"] button.bg-accent:not(.rounded-tag):hover:not(:disabled),
+[data-skin="haunted"] a.bg-accent:not(.rounded-tag):hover {
+  background: color-mix(in srgb, var(--accent) 88%, white);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+/* One faint glow behind the page header, on the dashboard and the incident page only. */
+[data-skin="haunted"] main:has(> article),
+[data-skin="haunted"] main:has(> div > h1:first-child + section) {
+  position: relative;
+  isolation: isolate;
+}
+[data-skin="haunted"] main:has(> article)::before,
+[data-skin="haunted"] main:has(> div > h1:first-child + section)::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 400px;
+  z-index: -1;
+  pointer-events: none;
+  background: radial-gradient(ellipse 50% 100% at 25% 0, rgb(255 122 26 / 0.08), transparent);
 }
 
 /* Fog: decorative only, never intercepts input, hidden in the professional skin. No fill: the decorative gradients are gone. */
