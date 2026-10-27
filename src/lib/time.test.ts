@@ -18,6 +18,7 @@ describe("formatRelative", () => {
     expect(formatRelative(ago(14 * DAY), now)).toBe("2 weeks ago");
     expect(formatRelative(ago(70 * DAY), now)).toBe("2 months ago");
     expect(formatRelative(ago(800 * DAY), now)).toBe("2 years ago");
+    expect(formatRelative(ago(364 * DAY), now)).toBe("11 months ago");
   });
 
   it("describes the future too", () => {
