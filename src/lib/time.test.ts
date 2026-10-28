@@ -46,3 +46,18 @@ describe("toLocalInput", () => {
     expect(toLocalInput(new Date(2026, 11, 31, 23, 59))).toBe("2026-12-31T23:59");
   });
 });
+
+describe("time helper boundaries", () => {
+  it("switches relative units exactly at the threshold", () => {
+    expect(formatRelative(ago(MIN - 1), now)).toBe("now");
+    expect(formatRelative(ago(HOUR - 1), now)).toBe("59 minutes ago");
+    expect(formatRelative(ago(HOUR), now)).toBe("1 hour ago");
+    expect(formatRelative(ago(7 * DAY), now)).toBe("last week");
+  });
+
+  it("rolls durations over cleanly", () => {
+    expect(formatDuration(59_999)).toBe("59s");
+    expect(formatDuration(HOUR)).toBe("1h 00m");
+    expect(formatDuration(DAY)).toBe("1d 0h");
+  });
+});
